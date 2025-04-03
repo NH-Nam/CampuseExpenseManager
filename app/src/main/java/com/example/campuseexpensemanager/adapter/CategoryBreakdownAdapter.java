@@ -15,10 +15,10 @@ import java.util.List;
 import java.util.Map;
 
 public class CategoryBreakdownAdapter extends RecyclerView.Adapter<CategoryBreakdownAdapter.ViewHolder> {
-    private List<Map.Entry<String, Float>> categories = new ArrayList<>();
-    private float totalSpent;
+    private List<Map.Entry<String, Double>> categories = new ArrayList<>();
+    private double totalSpent;
 
-    public CategoryBreakdownAdapter(float totalSpent) {
+    public CategoryBreakdownAdapter(double totalSpent) {
         this.totalSpent = totalSpent;
     }
 
@@ -32,10 +32,10 @@ public class CategoryBreakdownAdapter extends RecyclerView.Adapter<CategoryBreak
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        Map.Entry<String, Float> category = categories.get(position);
+        Map.Entry<String, Double> category = categories.get(position);
         holder.tvCategory.setText(category.getKey());
         holder.tvCategoryAmount.setText(String.format("$%.2f", category.getValue()));
-        float percentage = (category.getValue() / totalSpent) * 100;
+        double percentage = (category.getValue() / totalSpent) * 100;
         holder.tvCategoryPercentage.setText(String.format("%.1f%%", percentage));
     }
 
@@ -44,7 +44,7 @@ public class CategoryBreakdownAdapter extends RecyclerView.Adapter<CategoryBreak
         return categories.size();
     }
 
-    public void updateCategories(List<Map.Entry<String, Float>> categories, float totalSpent) {
+    public void updateCategories(List<Map.Entry<String, Double>> categories, double totalSpent) {
         this.categories = categories;
         this.totalSpent = totalSpent;
         notifyDataSetChanged();

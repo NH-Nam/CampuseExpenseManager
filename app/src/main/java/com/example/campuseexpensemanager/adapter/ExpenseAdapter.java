@@ -3,6 +3,7 @@ package com.example.campuseexpensemanager.adapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -17,38 +18,54 @@ import java.util.List;
 import java.util.Locale;
 
 public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseViewHolder> {
-    private List<Expenses> expenses;
-    private SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+    private List<Expenses> expensesList;
+    private OnExpenseEditListener editListener;
+    private OnExpenseDeleteListener deleteListener;
 
-    public ExpenseAdapter(List<Expenses> expenses) {
-        this.expenses = expenses;
+    public interface OnExpenseEditListener {
+        void onEdit(Expenses expense);
+    }
+
+    public interface OnExpenseDeleteListener {
+        void onDelete(Expenses expense);
+    }
+
+    public ExpenseAdapter(List<Expenses> expensesList, OnExpenseEditListener editListener, OnExpenseDeleteListener deleteListener) {
+        this.expensesList = expensesList;
+        this.editListener = editListener;
+        this.deleteListener = deleteListener;
     }
 
     @NonNull
     @Override
     public ExpenseViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_expense, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_expense, parent, false);
         return new ExpenseViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull ExpenseViewHolder holder, int position) {
-        Expenses expense = expenses.get(position);
-        holder.tvExpenseName.setText(expense.getName());
-        holder.tvExpenseAmount.setText(String.format("$%.2f", expense.getMoney()));
+        Expenses expense = expensesList.get(position);
+        holder.tvName.setText(expense.getName());
+        holder.tvAmount.setText(String.format(Locale.getDefault(), "$%.2f", expense.getMoney()));
+        holder.tvCategory.setText(expense.getCategory());
+        holder.tvDescription.setText(expense.getDescription());
         
-        // Format the date
+        // Set category icon based on category
+        setCategoryIcon(holder.ivCategoryIcon, expense.getCategory());
+        
+        // Format and display the date
         try {
-            String formattedDate = dateFormat.format(new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                    .parse(expense.getCreatedAt()));
-            holder.tvExpenseDate.setText(formattedDate);
+            SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+            SimpleDateFormat outputFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+            String date = outputFormat.format(inputFormat.parse(expense.getCreatedAt()));
+            holder.tvDate.setText(date);
         } catch (Exception e) {
-            holder.tvExpenseDate.setText(expense.getCreatedAt());
+            holder.tvDate.setText(expense.getCreatedAt());
         }
 
-        // Set category icon based on category
-        setCategoryIcon(holder.ivExpenseCategoryIcon, expense.getCategory());
+        holder.btnEdit.setOnClickListener(v -> editListener.onEdit(expense));
+        holder.btnDelete.setOnClickListener(v -> deleteListener.onDelete(expense));
     }
 
     private void setCategoryIcon(ImageView imageView, String category) {
@@ -57,7 +74,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
             case "food":
                 iconResource = R.drawable.local_dining_24dp;
                 break;
-            case "transport":
+            case "transportation":
                 iconResource = R.drawable.directions_car_24dp;
                 break;
             case "entertainment":
@@ -69,6 +86,12 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
             case "bills":
                 iconResource = R.drawable.paid_24dp;
                 break;
+            case "education":
+                iconResource = R.drawable.account_balance_wallet_24dp;
+                break;
+            case "health":
+                iconResource = R.drawable.payments_24dp;
+                break;
             default:
                 iconResource = R.drawable.category_24dp;
                 break;
@@ -78,26 +101,24 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
 
     @Override
     public int getItemCount() {
-        return expenses.size();
-    }
-
-    public void updateExpenses(List<Expenses> newExpenses) {
-        this.expenses = newExpenses;
-        notifyDataSetChanged();
+        return expensesList.size();
     }
 
     static class ExpenseViewHolder extends RecyclerView.ViewHolder {
-        ImageView ivExpenseCategoryIcon;
-        TextView tvExpenseName;
-        TextView tvExpenseDate;
-        TextView tvExpenseAmount;
+        TextView tvName, tvAmount, tvCategory, tvDescription, tvDate;
+        ImageView ivCategoryIcon;
+        ImageButton btnEdit, btnDelete;
 
         ExpenseViewHolder(@NonNull View itemView) {
             super(itemView);
-            ivExpenseCategoryIcon = itemView.findViewById(R.id.ivExpenseCategoryIcon);
-            tvExpenseName = itemView.findViewById(R.id.tvExpenseName);
-            tvExpenseDate = itemView.findViewById(R.id.tvExpenseDate);
-            tvExpenseAmount = itemView.findViewById(R.id.tvExpenseAmount);
+            tvName = itemView.findViewById(R.id.tvExpenseName);
+            tvAmount = itemView.findViewById(R.id.tvExpenseAmount);
+            tvCategory = itemView.findViewById(R.id.tvExpenseCategory);
+            tvDescription = itemView.findViewById(R.id.tvExpenseDescription);
+            tvDate = itemView.findViewById(R.id.tvExpenseDate);
+            ivCategoryIcon = itemView.findViewById(R.id.ivExpenseCategoryIcon);
+            btnEdit = itemView.findViewById(R.id.btnEditExpense);
+            btnDelete = itemView.findViewById(R.id.btnDeleteExpense);
         }
     }
 } 

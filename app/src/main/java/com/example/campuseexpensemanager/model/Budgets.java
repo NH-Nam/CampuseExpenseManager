@@ -6,6 +6,8 @@ public class Budgets {
     private double money;
     private String description;
     private String category;
+    private double spentAmount;
+    private String monthYear;
     private String createdAt;
     private String updatedAt;
     private String deletedAt;
@@ -50,6 +52,22 @@ public class Budgets {
         this.category = category;
     }
 
+    public double getSpentAmount() {
+        return spentAmount;
+    }
+
+    public void setSpentAmount(double spentAmount) {
+        this.spentAmount = spentAmount;
+    }
+
+    public String getMonthYear() {
+        return monthYear;
+    }
+
+    public void setMonthYear(String monthYear) {
+        this.monthYear = monthYear;
+    }
+
     public String getCreatedAt() {
         return createdAt;
     }
@@ -72,5 +90,16 @@ public class Budgets {
 
     public void setDeletedAt(String deletedAt) {
         this.deletedAt = deletedAt;
+    }
+
+    public double getRemainingAmount() {
+        return money - spentAmount;
+    }
+
+    public int getPercentageSpent() {
+        if (money > 0) {
+            return (int) ((spentAmount / money) * 100);
+        }
+        return 0;
     }
 }

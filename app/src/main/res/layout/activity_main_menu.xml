@@ -28,18 +28,21 @@
             app:labelVisibilityMode="labeled"
             app:menu="@menu/menu_bottom_navigation"
             android:layout_alignParentBottom="true"/>
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
+        <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
             android:id="@+id/fabAddExpense"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_above="@id/bottom_navigation"
             android:layout_alignParentEnd="true"
             android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp"
-            android:src="@drawable/add_24dp"
-            app:fabSize="normal"
-            app:elevation="8dp"
-            tools:ignore="ContentDescription" />
+            android:layout_marginBottom="24dp"
+            android:text="Add Expense"
+            app:icon="@drawable/add_24dp"
+            app:elevation="12dp"
+            app:backgroundTint="#4CAF50"
+            app:iconTint="#FFFFFF"
+            android:textColor="#FFFFFF"
+            app:rippleColor="#80FFFFFF" />
     </RelativeLayout>
     <com.google.android.material.navigation.NavigationView
         android:layout_width="wrap_content"

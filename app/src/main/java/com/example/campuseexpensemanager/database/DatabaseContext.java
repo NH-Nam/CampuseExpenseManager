@@ -1,6 +1,7 @@
 package com.example.campuseexpensemanager.database;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
@@ -8,7 +9,7 @@ import androidx.annotation.Nullable;
 
 public class DatabaseContext extends SQLiteOpenHelper {
     private static final String DB_NAME = "campus_expenses";
-    private static final int DB_VERSION = 5; // Increment the database version to 5
+    private static final int DB_VERSION = 7; // Increment the database version to 7
 
     // User table
     public static final String TABLE_NAME = "users";
@@ -29,6 +30,7 @@ public class DatabaseContext extends SQLiteOpenHelper {
     public static final String DESCRIPTION_BUDGET = "description"; // Optional
     public static final String TABLE_NAME_BUDGET = "budgets";
     public static final String CATEGORY_BUDGET = "category"; // New: Category for budget
+    public static final String SPENT_AMOUNT = "spent_amount"; // New: Spent amount for budget
 
     // Expense table
     public static final String ID_EXPENSE = "id";
@@ -37,6 +39,13 @@ public class DatabaseContext extends SQLiteOpenHelper {
     public static final String DESCRIPTION_EXPENSE = "description";
     public static final String CATEGORY_EXPENSE = "category"; // Add the category column
     public static final String TABLE_NAME_EXPENSE = "expenses";
+
+    // Budget Category table
+    public static final String TABLE_NAME_BUDGET_CATEGORY = "budget_categories";
+    public static final String ID_BUDGET_CATEGORY = "id";
+    public static final String CATEGORY_NAME = "category";
+    public static final String BUDGET_AMOUNT = "budget_amount";
+    public static final String MONTH = "month";
 
     public DatabaseContext(@Nullable Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -64,6 +73,7 @@ public class DatabaseContext extends SQLiteOpenHelper {
                 + MONEY_BUDGET + " REAL NOT NULL, "
                 + DESCRIPTION_BUDGET + " VARCHAR(200), " // Optional
                 + CATEGORY_BUDGET + " VARCHAR(100) NOT NULL, " // Add category here
+                + SPENT_AMOUNT + " REAL DEFAULT 0, " // Add spent amount here
                 + CREATED_AT + " DATETIME, "
                 + UPDATED_AT + " DATETIME, "
                 + DELETED_AT + " DATETIME ) ";
@@ -81,7 +91,17 @@ public class DatabaseContext extends SQLiteOpenHelper {
                 + DELETED_AT + " DATETIME ) ";
         db.execSQL(tableExpense);
 
-
+        // Create the budget categories table
+        String tableBudgetCategory = "CREATE TABLE " + TABLE_NAME_BUDGET_CATEGORY + " ( "
+                + ID_BUDGET_CATEGORY + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + CATEGORY_NAME + " VARCHAR(100) NOT NULL, "
+                + BUDGET_AMOUNT + " REAL NOT NULL, "
+                + SPENT_AMOUNT + " REAL DEFAULT 0, "
+                + MONTH + " VARCHAR(7) NOT NULL, " // Format: YYYY-MM
+                + CREATED_AT + " DATETIME, "
+                + UPDATED_AT + " DATETIME, "
+                + DELETED_AT + " DATETIME ) ";
+        db.execSQL(tableBudgetCategory);
     }
 
     @Override
@@ -90,11 +110,50 @@ public class DatabaseContext extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE " + TABLE_NAME_BUDGET + " ADD COLUMN " + CATEGORY_BUDGET + " VARCHAR(100)");
         }
 
+        if (oldVersion < 5) {
+            db.execSQL("ALTER TABLE " + TABLE_NAME_BUDGET + " ADD COLUMN " + SPENT_AMOUNT + " REAL DEFAULT 0");
+        }
+
+        if (oldVersion < 6) {
+            // Create the budget categories table if upgrading from version 5 or lower
+            String tableBudgetCategory = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME_BUDGET_CATEGORY + " ( "
+                    + ID_BUDGET_CATEGORY + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + CATEGORY_NAME + " VARCHAR(100) NOT NULL, "
+                    + BUDGET_AMOUNT + " REAL NOT NULL, "
+                    + SPENT_AMOUNT + " REAL DEFAULT 0, "
+                    + MONTH + " VARCHAR(7) NOT NULL, " // Format: YYYY-MM
+                    + CREATED_AT + " DATETIME, "
+                    + UPDATED_AT + " DATETIME, "
+                    + DELETED_AT + " DATETIME ) ";
+            db.execSQL(tableBudgetCategory);
+        }
+
+        if (oldVersion < 7) {
+            // Check if the spent_amount column exists in the budgets table
+            Cursor cursor = db.rawQuery("PRAGMA table_info(" + TABLE_NAME_BUDGET + ")", null);
+            boolean columnExists = false;
+            if (cursor != null) {
+                while (cursor.moveToNext()) {
+                    String columnName = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+                    if (columnName.equals(SPENT_AMOUNT)) {
+                        columnExists = true;
+                        break;
+                    }
+                }
+                cursor.close();
+            }
+            
+            // Add the column if it doesn't exist
+            if (!columnExists) {
+                db.execSQL("ALTER TABLE " + TABLE_NAME_BUDGET + " ADD COLUMN " + SPENT_AMOUNT + " REAL DEFAULT 0");
+            }
+        }
 
         if (oldVersion < newVersion) {
             db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
             db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_BUDGET);
             db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_EXPENSE);
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_BUDGET_CATEGORY);
             onCreate(db);
         }
     }

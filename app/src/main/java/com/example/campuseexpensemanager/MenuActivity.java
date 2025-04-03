@@ -4,6 +4,11 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.Spinner;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -14,11 +19,21 @@ import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.viewpager2.widget.ViewPager2;
 
-import com.example.campuseexpensemanager.R;
+import com.example.campuseexpensemanager.adapter.CategorySpinnerAdapter;
 import com.example.campuseexpensemanager.adapter.ViewPagerAdapter;
+import com.example.campuseexpensemanager.database.BudgetDb;
+import com.example.campuseexpensemanager.database.ExpenseDb;
+import com.example.campuseexpensemanager.model.Budgets;
+import com.example.campuseexpensemanager.model.Categories;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class MenuActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
     BottomNavigationView bottomNavigationView;
@@ -27,7 +42,7 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
     Toolbar toolbar;
     NavigationView navigationView;
     private String username;
-    private FloatingActionButton fabAddExpense;
+    private ExtendedFloatingActionButton fabAddExpense;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -60,7 +75,20 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
 
         // Setup FAB click listener
         fabAddExpense.setOnClickListener(v -> {
-            // TODO: Navigate to add expense screen
+            // Get current fragment position
+            int currentPosition = viewPager2.getCurrentItem();
+            
+            // Show appropriate dialog based on current fragment
+            if (currentPosition == 0) {
+                // Home fragment - show add expense dialog
+                showAddExpenseDialog();
+            } else if (currentPosition == 1) {
+                // Expenses fragment - show add expense dialog
+                showAddExpenseDialog();
+            } else if (currentPosition == 2) {
+                // Budget fragment - show add budget dialog
+                showAddBudgetDialog();
+            }
         });
 
         // bat su kien logout
@@ -97,14 +125,19 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
                 super.onPageSelected(position);
                 if (position == 0){
                     bottomNavigationView.getMenu().findItem(R.id.menu_home).setChecked(true);
+                    fabAddExpense.show();
                 } else if (position == 1) {
                     bottomNavigationView.getMenu().findItem(R.id.menu_expense).setChecked(true);
+                    fabAddExpense.show();
                 } else if (position == 2) {
                     bottomNavigationView.getMenu().findItem(R.id.menu_budget).setChecked(true);
+                    fabAddExpense.hide();
                 } else if (position == 3) {
                     bottomNavigationView.getMenu().findItem(R.id.menu_setting).setChecked(true);
+                    fabAddExpense.hide();
                 } else {
                     bottomNavigationView.getMenu().findItem(R.id.menu_home).setChecked(true);
+                    fabAddExpense.show();
                 }
             }
 
@@ -135,5 +168,138 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
         }
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
+    }
+
+    private void showAddExpenseDialog() {
+        // Create a dialog using dialog_expense.xml
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_expense, null);
+        
+        // Initialize views
+        EditText etName = dialogView.findViewById(R.id.etExpenseName);
+        EditText etAmount = dialogView.findViewById(R.id.etExpenseAmount);
+        EditText etDescription = dialogView.findViewById(R.id.etExpenseDescription);
+        Spinner spCategory = dialogView.findViewById(R.id.spinnerCategory);
+        
+        // Setup category spinner
+        List<Categories> categories = Arrays.asList(Categories.values());
+        CategorySpinnerAdapter categoryAdapter = new CategorySpinnerAdapter(this, categories);
+        spCategory.setAdapter(categoryAdapter);
+        
+        // Show dialog
+        new MaterialAlertDialogBuilder(this)
+            .setView(dialogView)
+            .setTitle("Add New Expense")
+            .setPositiveButton("Add", (dialog, which) -> {
+                String name = etName.getText().toString();
+                String amountStr = etAmount.getText().toString();
+                String description = etDescription.getText().toString();
+                Categories category = (Categories) spCategory.getSelectedItem();
+                
+                if (name.isEmpty() || amountStr.isEmpty()) {
+                    Toast.makeText(this, "Please fill all required fields", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                try {
+                    double amount = Double.parseDouble(amountStr);
+                    ExpenseDb expenseDb = new ExpenseDb(this);
+                    expenseDb.addExpense(name, amount, description, category.getDisplayName());
+                    expenseDb.close();
+                    Toast.makeText(this, "Expense added successfully", Toast.LENGTH_SHORT).show();
+                    
+                    // Refresh the current fragment
+                    refreshCurrentFragment();
+                } catch (NumberFormatException e) {
+                    Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+    
+    private void showAddBudgetDialog() {
+        // Create a dialog using dialog_add_edit_budget.xml
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_edit_budget, null);
+        
+        // Initialize views
+        MaterialAutoCompleteTextView categorySpinner = dialogView.findViewById(R.id.spinnerCategory);
+        TextInputEditText budgetAmountInput = dialogView.findViewById(R.id.editTextBudgetAmount);
+        
+        // Setup category spinner
+        ArrayAdapter<String> categoryAdapter = new ArrayAdapter<>(
+            this,
+            android.R.layout.simple_dropdown_item_1line,
+            new String[]{"Food", "Transportation", "Entertainment", "Shopping", "Bills", "Education", "Health"}
+        );
+        categorySpinner.setAdapter(categoryAdapter);
+        
+        // Show dialog
+        new MaterialAlertDialogBuilder(this)
+            .setTitle("Add Budget Category")
+            .setView(dialogView)
+            .setPositiveButton("Save", (dialog, which) -> {
+                String categoryName = categorySpinner.getText().toString().trim();
+                String budgetAmountStr = budgetAmountInput.getText().toString().trim();
+                
+                if (categoryName.isEmpty() || budgetAmountStr.isEmpty()) {
+                    Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                try {
+                    double budgetAmount = Double.parseDouble(budgetAmountStr);
+                    if (budgetAmount <= 0) {
+                        Toast.makeText(this, "Budget amount must be greater than 0", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    
+                    BudgetDb budgetDb = new BudgetDb(this);
+                    Budgets newCategory = new Budgets();
+                    newCategory.setName(categoryName);
+                    newCategory.setCategory(categoryName);
+                    newCategory.setMoney(budgetAmount);
+                    newCategory.setMonthYear(budgetDb.getCurrentMonth());
+                    budgetDb.addBudgetCategory(newCategory);
+                    budgetDb.close();
+                    
+                    Toast.makeText(this, "Budget category added successfully", Toast.LENGTH_SHORT).show();
+                    
+                    // Refresh the current fragment
+                    refreshCurrentFragment();
+                } catch (NumberFormatException e) {
+                    Toast.makeText(this, "Invalid budget amount", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+    
+    private void refreshCurrentFragment() {
+        // Get current fragment position
+        int currentPosition = viewPager2.getCurrentItem();
+        
+        // Refresh the appropriate fragment
+        if (currentPosition == 0) {
+            // Home fragment
+            HomeFragment homeFragment = (HomeFragment) getSupportFragmentManager()
+                .findFragmentByTag("f" + viewPager2.getId() + ":" + currentPosition);
+            if (homeFragment != null) {
+                homeFragment.refreshData();
+            }
+        } else if (currentPosition == 1) {
+            // Expenses fragment
+            ExpensesFragment expensesFragment = (ExpensesFragment) getSupportFragmentManager()
+                .findFragmentByTag("f" + viewPager2.getId() + ":" + currentPosition);
+            if (expensesFragment != null) {
+                expensesFragment.loadExpenses();
+            }
+        } else if (currentPosition == 2) {
+            // Budget fragment
+            BudgetFragment budgetFragment = (BudgetFragment) getSupportFragmentManager()
+                .findFragmentByTag("f" + viewPager2.getId() + ":" + currentPosition);
+            if (budgetFragment != null) {
+                budgetFragment.loadBudgetCategories();
+            }
+        }
     }
 }

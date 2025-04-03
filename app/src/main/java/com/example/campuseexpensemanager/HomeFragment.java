@@ -24,10 +24,14 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.cardview.widget.CardView;
+import androidx.viewpager2.widget.ViewPager2;
 
 import com.example.campuseexpensemanager.adapter.CategoryBreakdownAdapter;
 import com.example.campuseexpensemanager.adapter.ExpenseAdapter;
 import com.example.campuseexpensemanager.adapter.NotificationAdapter;
+import com.example.campuseexpensemanager.database.BudgetDb;
+import com.example.campuseexpensemanager.database.ExpenseDb;
+import com.example.campuseexpensemanager.model.Budgets;
 import com.example.campuseexpensemanager.model.Expenses;
 import com.example.campuseexpensemanager.model.Notification;
 import com.github.mikephil.charting.charts.PieChart;
@@ -35,6 +39,7 @@ import com.github.mikephil.charting.data.PieData;
 import com.github.mikephil.charting.data.PieDataSet;
 import com.github.mikephil.charting.data.PieEntry;
 import com.github.mikephil.charting.utils.ColorTemplate;
+import com.github.mikephil.charting.components.Legend;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,16 +56,18 @@ public class HomeFragment extends Fragment {
     RecyclerView rvRecentExpenses, rvNotifications, rvCategoryBreakdown;
     Button btnViewAllExpenses;
     CardView cardView;
-    PieChart pieChart;
+    PieChart pieChart, pieChartSpent;
     List<Notification> notifications = new ArrayList<>();
     NotificationAdapter notificationAdapter;
     CategoryBreakdownAdapter categoryBreakdownAdapter;
+    ExpenseDb expenseDb;
+    BudgetDb budgetDb;
 
     // Data
     List<Expenses> expenses = new ArrayList<>();
-    float totalBudget = 1000f;
-    float totalSpent = 0f;
-    Map<String, Float> categoryBudgets = new HashMap<>();
+    double totalBudget = 0.0;
+    double totalSpent = 0.0;
+    Map<String, Double> categoryBudgets = new HashMap<>();
 
     // Notification channel ID
     private static final String CHANNEL_ID = "budget_notifications";
@@ -83,7 +90,12 @@ public class HomeFragment extends Fragment {
         btnViewAllExpenses = view.findViewById(R.id.btnViewAllExpenses);
         cardView = view.findViewById(R.id.cardView);
         pieChart = view.findViewById(R.id.pieChart);
+        pieChartSpent = view.findViewById(R.id.pieChartSpent);
         rvNotifications = view.findViewById(R.id.rvNotifications);
+
+        // Initialize database
+        expenseDb = new ExpenseDb(requireContext());
+        budgetDb = new BudgetDb(requireContext());
 
         // Get username from arguments
         String username = "User";
@@ -96,7 +108,7 @@ public class HomeFragment extends Fragment {
         setupNotifications();
         
         // Setup RecyclerViews
-//        setupDummyData();
+        loadExpenses();
         setupRecentExpensesRecyclerView();
         setupCategoryBreakdown();
         setupBudgetChart();
@@ -116,46 +128,10 @@ public class HomeFragment extends Fragment {
         return view;
     }
 
-//    private void setupDummyData() {
-//        // Add some dummy expenses for testing
-//        Expenses expense1 = new Expenses();
-//        expense1.setId(1);
-//        expense1.setName("Lunch");
-//        expense1.setMoney(250.0);
-//        expense1.setCategory("Food");
-//        expense1.setCreatedAt("2024-03-15");
-//        expenses.add(expense1);
-//
-//        Expenses expense2 = new Expenses();
-//        expense2.setId(2);
-//        expense2.setName("Bus Fare");
-//        expense2.setMoney(180.0);
-//        expense2.setCategory("Transport");
-//        expense2.setCreatedAt("2024-03-14");
-//        expenses.add(expense2);
-//
-//        Expenses expense3 = new Expenses();
-//        expense3.setId(3);
-//        expense3.setName("Movie Ticket");
-//        expense3.setMoney(100.0);
-//        expense3.setCategory("Entertainment");
-//        expense3.setCreatedAt("2024-03-13");
-//        expenses.add(expense3);
-//
-//        Expenses expense4 = new Expenses();
-//        expense4.setId(4);
-//        expense4.setName("Dinner");
-//        expense4.setMoney(75.0);
-//        expense4.setCategory("Food");
-//        expense4.setCreatedAt("2024-03-12");
-//        expenses.add(expense4);
-//
-//        // Set category budgets
-//        categoryBudgets.put("Food", 300f);
-//        categoryBudgets.put("Transport", 200f);
-//        categoryBudgets.put("Entertainment", 200f);
-//        categoryBudgets.put("Shopping", 300f);
-//    }
+    private void loadExpenses() {
+        expenses.clear();
+        expenses.addAll(expenseDb.getAllExpenses());
+    }
 
     private void setupCategoryBreakdown() {
         categoryBreakdownAdapter = new CategoryBreakdownAdapter(totalSpent);
@@ -164,17 +140,17 @@ public class HomeFragment extends Fragment {
     }
 
     private void updateCategoryBreakdown() {
-        Map<String, Float> categoryTotals = new HashMap<>();
+        Map<String, Double> categoryTotals = new HashMap<>();
         
         // Calculate total spent by category
         for (Expenses expense : expenses) {
             String category = expense.getCategory();
-            float amount = (float) expense.getMoney();
-            categoryTotals.put(category, categoryTotals.getOrDefault(category, 0f) + amount);
+            double amount = expense.getMoney();
+            categoryTotals.put(category, categoryTotals.getOrDefault(category, 0.0) + amount);
         }
 
         // Sort categories by amount spent (descending)
-        List<Map.Entry<String, Float>> sortedCategories = categoryTotals.entrySet().stream()
+        List<Map.Entry<String, Double>> sortedCategories = categoryTotals.entrySet().stream()
                 .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
                 .collect(Collectors.toList());
 
@@ -195,14 +171,47 @@ public class HomeFragment extends Fragment {
     }
 
     private void setupRecentExpensesRecyclerView() {
-        ExpenseAdapter adapter = new ExpenseAdapter(expenses);
+        // Get only the 5 most recent expenses
+        List<Expenses> recentExpenses = new ArrayList<>();
+        int count = Math.min(expenses.size(), 5);
+        for (int i = 0; i < count; i++) {
+            recentExpenses.add(expenses.get(i));
+        }
+        
+        ExpenseAdapter adapter = new ExpenseAdapter(
+            recentExpenses,
+            expense -> {
+                // Navigate to ExpensesFragment and scroll to this expense
+                ViewPager2 viewPager = requireActivity().findViewById(R.id.viewPager);
+                viewPager.setCurrentItem(1); // Switch to Expenses tab
+                
+                // We can't directly scroll to the item in ExpensesFragment from here
+                // The ExpensesFragment will need to handle this when it becomes visible
+                Toast.makeText(getContext(), "Edit expense: " + expense.getName(), Toast.LENGTH_SHORT).show();
+            },
+            expense -> {
+                // Show delete confirmation dialog
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle("Delete Expense")
+                    .setMessage("Are you sure you want to delete this expense?")
+                    .setPositiveButton("Delete", (dialog, which) -> {
+                        expenseDb.deleteExpense(expense.getId());
+                        loadExpenses();
+                        updateUI();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            }
+        );
         rvRecentExpenses.setAdapter(adapter);
         rvRecentExpenses.setLayoutManager(new LinearLayoutManager(getContext()));
     }
 
     private void setupListeners() {
         btnViewAllExpenses.setOnClickListener(v -> {
-            // TODO: Navigate to view all expenses screen
+            // Navigate to ExpensesFragment
+            ViewPager2 viewPager = requireActivity().findViewById(R.id.viewPager);
+            viewPager.setCurrentItem(1); // Switch to Expenses tab
         });
 
         ivProfile.setOnClickListener(v -> {
@@ -211,19 +220,35 @@ public class HomeFragment extends Fragment {
     }
 
     private void updateUI() {
-        // Calculate total spent
-        totalSpent = 0f;
-        for (Expenses expense : expenses) {
-            totalSpent += expense.getMoney();
+        // Load budget categories
+        List<Budgets> budgetCategories = budgetDb.getAllBudgetCategories();
+        
+        // Calculate total budget and spent
+        totalBudget = 0.0;
+        totalSpent = 0.0;
+        categoryBudgets.clear();
+        
+        for (Budgets budget : budgetCategories) {
+            totalBudget += budget.getMoney();
+            totalSpent += budget.getSpentAmount();
+            categoryBudgets.put(budget.getName(), budget.getMoney());
         }
 
         tvTotalSpent.setText("$" + String.format("%.2f", totalSpent));
         tvBudgetStatus.setText("Budget: $" + String.format("%.2f", totalBudget));
         tvBudgetRemaining.setText("Remaining: $" + String.format("%.2f", (totalBudget - totalSpent)));
-        pbBudgetProgress.setProgress((int) ((totalSpent / totalBudget) * 100));
+        
+        if (totalBudget > 0) {
+            pbBudgetProgress.setProgress((int) ((totalSpent / totalBudget) * 100));
+        } else {
+            pbBudgetProgress.setProgress(0);
+        }
 
         // Update category breakdown
         updateCategoryBreakdown();
+        
+        // Update recent expenses
+        setupRecentExpensesRecyclerView();
 
         // Check for budget warnings
         checkBudgetWarning();
@@ -250,34 +275,36 @@ public class HomeFragment extends Fragment {
     }
 
     private void setupBudgetChart() {
-        List<PieEntry> entries = new ArrayList<>();
-        Map<String, Float> categoryTotals = new HashMap<>();
+        // Setup budget pie chart
+        List<PieEntry> budgetEntries = new ArrayList<>();
         
-        // Calculate total spent by category
-        for (Expenses expense : expenses) {
-            String category = expense.getCategory();
-            float amount = (float) expense.getMoney();
-            categoryTotals.put(category, categoryTotals.getOrDefault(category, 0f) + amount);
-        }
+        // Get budget categories
+        List<Budgets> budgetCategories = budgetDb.getAllBudgetCategories();
         
-        // Add category totals to pie chart
-        for (Map.Entry<String, Float> entry : categoryTotals.entrySet()) {
-            entries.add(new PieEntry(entry.getValue(), entry.getKey()));
-        }
-        
-        // Add remaining budget
-        float remaining = totalBudget - totalSpent;
-        if (remaining > 0) {
-            entries.add(new PieEntry(remaining, "Remaining"));
+        // Add budget categories with their spent amounts
+        for (Budgets budget : budgetCategories) {
+            if (budget.getMoney() > 0) {
+                // Add the budget amount
+                budgetEntries.add(new PieEntry((float) budget.getMoney(), budget.getName()));
+            }
         }
 
-        PieDataSet dataSet = new PieDataSet(entries, "Budget Distribution");
-        dataSet.setColors(ColorTemplate.MATERIAL_COLORS);
-        dataSet.setValueTextSize(12f);
-        dataSet.setValueTextColor(Color.WHITE);
-
-        PieData data = new PieData(dataSet);
-        pieChart.setData(data);
+        // Create a dataset for the budget amounts
+        PieDataSet budgetDataSet = new PieDataSet(budgetEntries, "Budget Distribution");
+        budgetDataSet.setColors(ColorTemplate.MATERIAL_COLORS);
+        budgetDataSet.setValueTextSize(12f);
+        budgetDataSet.setValueTextColor(Color.WHITE);
+        
+        // Create a legend for the budget pie chart
+        Legend budgetLegend = pieChart.getLegend();
+        budgetLegend.setEnabled(true);
+        budgetLegend.setTextSize(12f);
+        budgetLegend.setForm(Legend.LegendForm.CIRCLE);
+        budgetLegend.setHorizontalAlignment(Legend.LegendHorizontalAlignment.CENTER);
+        
+        PieData budgetData = new PieData(budgetDataSet);
+        
+        pieChart.setData(budgetData);
         pieChart.setDescription(null);
         pieChart.setHoleRadius(40f);
         pieChart.setTransparentCircleRadius(45f);
@@ -286,12 +313,53 @@ public class HomeFragment extends Fragment {
         pieChart.animateY(1000);
         pieChart.invalidate();
         
+        // Setup spent pie chart
+        List<PieEntry> spentEntries = new ArrayList<>();
+        
+        // Add spent amounts for each category
+        for (Budgets budget : budgetCategories) {
+            if (budget.getSpentAmount() > 0) {
+                // Add the spent amount
+                spentEntries.add(new PieEntry((float) budget.getSpentAmount(), budget.getName()));
+            }
+        }
+
+        // Create a dataset for the spent amounts
+        PieDataSet spentDataSet = new PieDataSet(spentEntries, "Spent Distribution");
+        spentDataSet.setColors(ColorTemplate.MATERIAL_COLORS);
+        spentDataSet.setValueTextSize(12f);
+        spentDataSet.setValueTextColor(Color.WHITE);
+        
+        // Create a legend for the spent pie chart
+        Legend spentLegend = pieChartSpent.getLegend();
+        spentLegend.setEnabled(true);
+        spentLegend.setTextSize(12f);
+        spentLegend.setForm(Legend.LegendForm.CIRCLE);
+        spentLegend.setHorizontalAlignment(Legend.LegendHorizontalAlignment.CENTER);
+        
+        PieData spentData = new PieData(spentDataSet);
+        
+        pieChartSpent.setData(spentData);
+        pieChartSpent.setDescription(null);
+        pieChartSpent.setHoleRadius(40f);
+        pieChartSpent.setTransparentCircleRadius(45f);
+        pieChartSpent.setEntryLabelColor(Color.WHITE);
+        pieChartSpent.setEntryLabelTextSize(12f);
+        pieChartSpent.animateY(1000);
+        pieChartSpent.invalidate();
+        
+        // Add a text view to show the total spent amount
+        TextView tvTotalSpentChart = requireActivity().findViewById(R.id.tvTotalSpentChart);
+        if (tvTotalSpentChart != null) {
+            tvTotalSpentChart.setText("Total Spent: $" + String.format("%.2f", totalSpent));
+        }
+        
         // Check for budget warnings
         checkBudgetWarning();
     }
 
     private void checkBudgetWarning() {
-        float percentageSpent = (totalSpent / totalBudget) * 100;
+        double percentageSpent = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
         
         // Check overall budget
         if (percentageSpent >= 80) {
@@ -299,28 +367,21 @@ public class HomeFragment extends Fragment {
         }
 
         // Check category budgets
-        Map<String, Float> categoryTotals = new HashMap<>();
-        for (Expenses expense : expenses) {
-            String category = expense.getCategory();
-            float amount = (float) expense.getMoney();
-            categoryTotals.put(category, categoryTotals.getOrDefault(category, 0f) + amount);
-        }
-
-        for (Map.Entry<String, Float> entry : categoryTotals.entrySet()) {
-            String category = entry.getKey();
-            float spent = entry.getValue();
-            float budget = categoryBudgets.getOrDefault(category, 0f);
+        List<Budgets> budgetCategories = budgetDb.getAllBudgetCategories();
+        for (Budgets budget : budgetCategories) {
+            double budgetAmount = budget.getMoney();
+            double spentAmount = budget.getSpentAmount();
             
-            if (budget > 0) {
-                float categoryPercentage = (spent / budget) * 100;
+            if (budgetAmount > 0) {
+                double categoryPercentage = (spentAmount / budgetAmount) * 100;
                 if (categoryPercentage >= 80) {
-                    showBudgetWarningNotification(category, categoryPercentage);
+                    showBudgetWarningNotification(budget.getName(), categoryPercentage);
                 }
             }
         }
     }
 
-    private void showBudgetWarningNotification(String category, float percentage) {
+    private void showBudgetWarningNotification(String category, double percentage) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(requireContext(), 
                     Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -381,5 +442,34 @@ public class HomeFragment extends Fragment {
                         Toast.LENGTH_LONG).show();
             }
         }
+    }
+    
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (expenseDb != null) {
+            expenseDb.close();
+        }
+        if (budgetDb != null) {
+            budgetDb.close();
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        loadExpenses();
+        updateUI();
+    }
+    
+    /**
+     * Refreshes all data in the HomeFragment
+     * This method is called from MenuActivity when a new expense is added
+     */
+    public void refreshData() {
+        loadExpenses();
+        updateUI();
+        setupBudgetChart();
+        setupCategoryBreakdown();
     }
 }

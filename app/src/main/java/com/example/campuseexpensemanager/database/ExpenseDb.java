@@ -3,21 +3,31 @@ package com.example.campuseexpensemanager.database;
 import android.annotation.SuppressLint;
 import android.content.ContentValues;
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 import androidx.annotation.Nullable;
 
+import com.example.campuseexpensemanager.model.Budgets;
+import com.example.campuseexpensemanager.model.Expenses;
+
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ExpenseDb {
     private final SQLiteDatabase dbRead, dbWrite;
+    private BudgetDb budgetDb;
+    
     public ExpenseDb(@Nullable Context context){
         DatabaseContext helper = new DatabaseContext(context);
         dbRead = helper.getReadableDatabase();
         dbWrite = helper.getWritableDatabase();
-        }
+        budgetDb = new BudgetDb(context);
+    }
+    
     // truy van lam viec voi bang expenses
 
     public long addExpense(String name, double amount, String description, String category) {
@@ -29,43 +39,248 @@ public class ExpenseDb {
         values.put(DatabaseContext.CATEGORY_EXPENSE, category);
         values.put(DatabaseContext.CREATED_AT, currentDate);
 
-        return dbWrite.insert(DatabaseContext.TABLE_NAME_EXPENSE, null, values);
+        long result = dbWrite.insert(DatabaseContext.TABLE_NAME_EXPENSE, null, values);
+        
+        // Update budget category spent amount
+        if (result != -1 && category != null && !category.isEmpty()) {
+            updateBudgetCategorySpentAmount(category, amount);
+        }
+        
+        return result;
     }
 
     public int editExpense(long id, String name, double amount, String description, String category) {
+        // Get the old expense to calculate the difference in amount
+        Expenses oldExpense = getExpenseById(id);
+        double oldAmount = oldExpense != null ? oldExpense.getMoney() : 0;
+        String oldCategory = oldExpense != null ? oldExpense.getCategory() : null;
+        
         ContentValues values = new ContentValues();
         values.put(DatabaseContext.NAME_EXPENSE, name);
         values.put(DatabaseContext.MONEY_EXPENSE, amount);
         values.put(DatabaseContext.DESCRIPTION_EXPENSE, description);
         values.put(DatabaseContext.CATEGORY_EXPENSE, category);
+        values.put(DatabaseContext.UPDATED_AT, getCurrentDateTime());
 
         String selection = DatabaseContext.ID_EXPENSE + " LIKE ?";
         String[] selectionArgs = {String.valueOf(id)};
 
-        return dbWrite.update(DatabaseContext.TABLE_NAME_EXPENSE, values, selection, selectionArgs);
+        int result = dbWrite.update(DatabaseContext.TABLE_NAME_EXPENSE, values, selection, selectionArgs);
+        
+        // Update budget category spent amounts
+        if (result > 0) {
+            // If category changed, update both old and new categories
+            if (oldCategory != null && !oldCategory.equals(category)) {
+                // Subtract from old category
+                if (oldCategory != null && !oldCategory.isEmpty()) {
+                    updateBudgetCategorySpentAmount(oldCategory, -oldAmount);
+                }
+                
+                // Add to new category
+                if (category != null && !category.isEmpty()) {
+                    updateBudgetCategorySpentAmount(category, amount);
+                }
+            } else if (oldCategory != null && !oldCategory.isEmpty()) {
+                // Same category, just update the difference
+                double difference = amount - oldAmount;
+                if (difference != 0) {
+                    updateBudgetCategorySpentAmount(oldCategory, difference);
+                }
+            }
+        }
+        
+        return result;
     }
 
     public int categorizeExpense(long id, String category) {
+        // Get the old expense to get the old category and amount
+        Expenses oldExpense = getExpenseById(id);
+        String oldCategory = oldExpense != null ? oldExpense.getCategory() : null;
+        double amount = oldExpense != null ? oldExpense.getMoney() : 0;
+        
         ContentValues values = new ContentValues();
         values.put(DatabaseContext.CATEGORY_EXPENSE, category);
+        values.put(DatabaseContext.UPDATED_AT, getCurrentDateTime());
 
         String selection = DatabaseContext.ID_EXPENSE + " LIKE ?";
         String[] selectionArgs = {String.valueOf(id)};
 
-        return dbWrite.update(DatabaseContext.TABLE_NAME_EXPENSE, values, selection, selectionArgs);
+        int result = dbWrite.update(DatabaseContext.TABLE_NAME_EXPENSE, values, selection, selectionArgs);
+        
+        // Update budget category spent amounts
+        if (result > 0) {
+            // Subtract from old category
+            if (oldCategory != null && !oldCategory.isEmpty()) {
+                updateBudgetCategorySpentAmount(oldCategory, -amount);
+            }
+            
+            // Add to new category
+            if (category != null && !category.isEmpty()) {
+                updateBudgetCategorySpentAmount(category, amount);
+            }
+        }
+        
+        return result;
     }
 
     public int deleteExpense(long id) {
+        // Get the expense to get the category and amount
+        Expenses expense = getExpenseById(id);
+        String category = expense != null ? expense.getCategory() : null;
+        double amount = expense != null ? expense.getMoney() : 0;
+        
         String selection = DatabaseContext.ID_EXPENSE + " LIKE ?";
         String[] selectionArgs = {String.valueOf(id)};
 
-        return dbWrite.delete(DatabaseContext.TABLE_NAME_EXPENSE, selection, selectionArgs);
+        int result = dbWrite.delete(DatabaseContext.TABLE_NAME_EXPENSE, selection, selectionArgs);
+        
+        // Update budget category spent amount
+        if (result > 0 && category != null && !category.isEmpty()) {
+            updateBudgetCategorySpentAmount(category, -amount);
+        }
+        
+        return result;
+    }
+
+    public List<Expenses> getAllExpenses() {
+        List<Expenses> expensesList = new ArrayList<>();
+        
+        String[] projection = {
+            DatabaseContext.ID_EXPENSE,
+            DatabaseContext.NAME_EXPENSE,
+            DatabaseContext.MONEY_EXPENSE,
+            DatabaseContext.DESCRIPTION_EXPENSE,
+            DatabaseContext.CATEGORY_EXPENSE,
+            DatabaseContext.CREATED_AT,
+            DatabaseContext.UPDATED_AT,
+            DatabaseContext.DELETED_AT
+        };
+        
+        String selection = DatabaseContext.DELETED_AT + " IS NULL";
+        
+        Cursor cursor = dbRead.query(
+            DatabaseContext.TABLE_NAME_EXPENSE,
+            projection,
+            selection,
+            null,
+            null,
+            null,
+            DatabaseContext.CREATED_AT + " DESC"
+        );
+        
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                Expenses expense = new Expenses();
+                expense.setId(cursor.getInt(cursor.getColumnIndexOrThrow(DatabaseContext.ID_EXPENSE)));
+                expense.setName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.NAME_EXPENSE)));
+                expense.setMoney(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseContext.MONEY_EXPENSE)));
+                expense.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.DESCRIPTION_EXPENSE)));
+                expense.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CATEGORY_EXPENSE)));
+                expense.setCreatedAt(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CREATED_AT)));
+                expense.setUpdatedAt(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.UPDATED_AT)));
+                expense.setDeletedAt(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.DELETED_AT)));
+                
+                expensesList.add(expense);
+            } while (cursor.moveToNext());
+            
+            cursor.close();
+        }
+        
+        return expensesList;
+    }
+    
+    public Expenses getExpenseById(long id) {
+        String[] projection = {
+            DatabaseContext.ID_EXPENSE,
+            DatabaseContext.NAME_EXPENSE,
+            DatabaseContext.MONEY_EXPENSE,
+            DatabaseContext.DESCRIPTION_EXPENSE,
+            DatabaseContext.CATEGORY_EXPENSE,
+            DatabaseContext.CREATED_AT,
+            DatabaseContext.UPDATED_AT,
+            DatabaseContext.DELETED_AT
+        };
+        
+        String selection = DatabaseContext.ID_EXPENSE + " LIKE ?";
+        String[] selectionArgs = {String.valueOf(id)};
+        
+        Cursor cursor = dbRead.query(
+            DatabaseContext.TABLE_NAME_EXPENSE,
+            projection,
+            selection,
+            selectionArgs,
+            null,
+            null,
+            null
+        );
+        
+        Expenses expense = null;
+        if (cursor != null && cursor.moveToFirst()) {
+            expense = new Expenses();
+            expense.setId(cursor.getInt(cursor.getColumnIndexOrThrow(DatabaseContext.ID_EXPENSE)));
+            expense.setName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.NAME_EXPENSE)));
+            expense.setMoney(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseContext.MONEY_EXPENSE)));
+            expense.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.DESCRIPTION_EXPENSE)));
+            expense.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CATEGORY_EXPENSE)));
+            expense.setCreatedAt(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CREATED_AT)));
+            expense.setUpdatedAt(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.UPDATED_AT)));
+            expense.setDeletedAt(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.DELETED_AT)));
+            
+            cursor.close();
+        }
+        
+        return expense;
+    }
+
+    private void updateBudgetCategorySpentAmount(String category, double amount) {
+        if (category == null || category.isEmpty()) {
+            return;
+        }
+
+        try {
+            // Get the current spent amount for this category
+            List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
+            if (budgetCategories == null) {
+                return;
+            }
+
+            boolean categoryExists = false;
+            for (Budgets budget : budgetCategories) {
+                if (budget != null && budget.getName() != null && budget.getName().equals(category)) {
+                    // Update the spent amount
+                    double newSpentAmount = budget.getSpentAmount() + amount;
+                    budget.setSpentAmount(newSpentAmount);
+                    budgetDb.updateSpentAmount(budget.getId(), newSpentAmount);
+                    categoryExists = true;
+                    break;
+                }
+            }
+
+            // If category doesn't exist in budget, create it
+            if (!categoryExists) {
+                Budgets newBudget = new Budgets();
+                newBudget.setName(category);
+                newBudget.setCategory(category);
+                newBudget.setMoney(0); // Set initial budget to 0
+                newBudget.setSpentAmount(amount);
+                newBudget.setMonthYear(budgetDb.getCurrentMonth());
+                budgetDb.addBudgetCategory(newBudget);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @SuppressLint({"NewApi", "LocalSuppress"})
     private String getCurrentDateTime() {
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         ZonedDateTime zoneDt = ZonedDateTime.now(ZoneId.systemDefault());
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         return dtf.format(zoneDt);
+    }
+    
+    public void close() {
+        if (budgetDb != null) {
+            budgetDb.close();
+        }
     }
 }
