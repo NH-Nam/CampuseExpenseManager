@@ -92,14 +92,14 @@ public class HomeFragment extends Fragment {
         }
         tvGreeting.setText("Hello, " + username);
 
+        // Setup notifications first to avoid null pointer exceptions
+        setupNotifications();
+        
         // Setup RecyclerViews
-        setupDummyData();
+//        setupDummyData();
         setupRecentExpensesRecyclerView();
         setupCategoryBreakdown();
         setupBudgetChart();
-
-        // Setup notifications
-        setupNotifications();
 
         // Set up listeners
         setupListeners();
@@ -116,15 +116,46 @@ public class HomeFragment extends Fragment {
         return view;
     }
 
-    private void setupDummyData() {
-
-        
-        // Set category budgets
-        categoryBudgets.put("Food", 300f);
-        categoryBudgets.put("Transport", 200f);
-        categoryBudgets.put("Entertainment", 200f);
-        categoryBudgets.put("Shopping", 300f);
-    }
+//    private void setupDummyData() {
+//        // Add some dummy expenses for testing
+//        Expenses expense1 = new Expenses();
+//        expense1.setId(1);
+//        expense1.setName("Lunch");
+//        expense1.setMoney(250.0);
+//        expense1.setCategory("Food");
+//        expense1.setCreatedAt("2024-03-15");
+//        expenses.add(expense1);
+//
+//        Expenses expense2 = new Expenses();
+//        expense2.setId(2);
+//        expense2.setName("Bus Fare");
+//        expense2.setMoney(180.0);
+//        expense2.setCategory("Transport");
+//        expense2.setCreatedAt("2024-03-14");
+//        expenses.add(expense2);
+//
+//        Expenses expense3 = new Expenses();
+//        expense3.setId(3);
+//        expense3.setName("Movie Ticket");
+//        expense3.setMoney(100.0);
+//        expense3.setCategory("Entertainment");
+//        expense3.setCreatedAt("2024-03-13");
+//        expenses.add(expense3);
+//
+//        Expenses expense4 = new Expenses();
+//        expense4.setId(4);
+//        expense4.setName("Dinner");
+//        expense4.setMoney(75.0);
+//        expense4.setCategory("Food");
+//        expense4.setCreatedAt("2024-03-12");
+//        expenses.add(expense4);
+//
+//        // Set category budgets
+//        categoryBudgets.put("Food", 300f);
+//        categoryBudgets.put("Transport", 200f);
+//        categoryBudgets.put("Entertainment", 200f);
+//        categoryBudgets.put("Shopping", 300f);
+//    }
 
     private void setupCategoryBreakdown() {
         categoryBreakdownAdapter = new CategoryBreakdownAdapter(totalSpent);
@@ -314,7 +345,11 @@ public class HomeFragment extends Fragment {
                 String.format("You've spent %.0f%% of your %s budget", percentage, category),
                 R.drawable.warning_24dp
             ));
-            notificationAdapter.updateNotifications(notifications);
+            
+            // Only update the adapter if it's not null
+            if (notificationAdapter != null) {
+                notificationAdapter.updateNotifications(notifications);
+            }
         } catch (SecurityException e) {
             Toast.makeText(requireContext(), 
                     "Cannot show notification: permission denied", 
