@@ -1,10 +1,5 @@
 <resources>
     <string name="app_name">Campuse Expense Manager</string>
-    <string-array name="budget_categories">
-        <item>Food</item>
-        <item>Entertainment</item>
-        <item>Utilities</item>
-        <item>Transportation</item>
-        <item>Education</item>
-    </string-array>
+
 </resources>
+
