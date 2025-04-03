@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:background="?android:attr/selectableItemBackground">
+
+    <TextView
+        android:id="@+id/tv_Budgetdescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Mô tả"
+        android:textSize="16sp"
+        android:textStyle="bold"/>
+
+    <TextView
+        android:id="@+id/tv_Budgetamount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Số tiền"
+        android:textSize="14sp"
+        android:textColor="#666666"/>
+
+    <TextView
+        android:id="@+id/tv_Budgetdate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:text="Ngày"
+        android:textColor="#666666"/>
+
+    <TextView
+        android:id="@+id/tv_Budgetcategory"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Danh mục"
+        android:textSize="14sp"
+        android:textColor="#666666"/>
+
+    <Button
+        android:id="@+id/btn_edit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Chỉnh sửa" />
+</LinearLayout>

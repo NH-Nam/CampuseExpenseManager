@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/menu_home"
+            android:title="Home"
+            android:icon="@drawable/home"
+            tools:ignore="HardcodedText,MissingPrefix" />
+
+        <item
+            android:id="@+id/menu_expanse"
+            android:title="Expenses"
+            android:icon="@drawable/payments"
+            tools:ignore="HardcodedText,MissingPrefix" />
+
+        <item
+            android:id="@+id/menu_budget"
+            android:title="Budgets"
+            android:icon="@drawable/wallet"
+            tools:ignore="HardcodedText,MissingPrefix" />
+
+        <item
+            android:id="@+id/menu_setting"
+            android:title="Settings"
+            android:icon="@drawable/settings"
+            tools:ignore="HardcodedText,MissingPrefix" />
+    </group>
+
+    <item android:title="Others">
+        <menu>
+            <item
+                android:id="@+id/nav_logout"
+                android:title="Logout"
+                android:icon="@drawable/logout"
+                tools:ignore="HardcodedText" />
+        </menu>
+    </item>
+</menu>

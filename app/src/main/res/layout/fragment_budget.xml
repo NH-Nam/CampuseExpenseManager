@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".BudgetFragment"
+    android:padding="10dp"
+    android:orientation="vertical"
+    android:id="@+id/fragment_container"
+    android:background="#F5F5F5">
+
+    <!-- TODO: Update blank fragment layout -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Budget page"
+        android:textSize="24dp"
+        android:textStyle="bold"
+        android:layout_gravity="center_horizontal"/>
+    <EditText
+        android:id="@+id/et_budgetdescription"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Mô tả (ví dụ: Tiền thuê nhà)"
+        android:padding="10dp"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/et_budgetamount"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Số tiền (VNĐ)"
+        android:inputType="numberDecimal"
+        android:padding="10dp"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/et_budgetdate"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="Ngày (nhấn để chọn)"
+        android:focusable="false"
+        android:layout_marginBottom="20dp"/>
+
+    <Spinner
+        android:id="@+id/spinner_budgetcategory"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="20dp"/>
+
+    <Button
+        android:id="@+id/btn_budgetsave"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Lưu thu nhập"
+        android:backgroundTint="#00008B"
+        android:textColor="#FFFFFF"
+        android:padding="16dp"/>
+</LinearLayout>

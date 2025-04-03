@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingBottom="100dp"
+    android:background="@drawable/gradient_background">
+
+    <!-- Logo -->
+    <ImageView
+        android:id="@+id/img_logo"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:src="@drawable/logo"
+        android:layout_gravity="center"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Tiêu đề -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Cost Overview"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:textColor="#00008B"
+        android:layout_marginBottom="20dp"/>
+
+    <!-- Spinner chọn tháng và năm -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <Spinner
+            android:id="@+id/spinner_month"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/border_background"/>
+
+        <Spinner
+            android:id="@+id/spinner_year"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/border_background"/>
+    </LinearLayout>
+
+    <!-- Thông tin trước danh sách khoản chi -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="Transactions:"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:layout_weight="1"/>
+
+            <TextView
+                android:id="@+id/see_all_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="See All."
+                android:textSize="18sp"
+                android:textColor="#00008B"
+                android:layout_gravity="end"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Danh sách khoản chi -->
+    <ListView
+        android:id="@+id/list_expense_categories"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="2"
+        android:background="@drawable/border_background"
+        android:layout_marginBottom="16dp"
+        android:padding="8dp"/>
+
+    <!-- Thông tin ngân sách -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/border_background"
+        android:padding="12dp">
+
+        <!-- Tổng ngân sách -->
+        <TextView
+            android:id="@+id/tv_total_budget"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tổng ngân sách: 20,000,000 VNĐ"
+            android:textSize="16sp"
+            android:textColor="#00008B"/>
+
+        <!-- Tổng chi tiêu -->
+        <TextView
+            android:id="@+id/tv_total_spent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tổng chi tiêu: 0 VNĐ"
+            android:textSize="16sp"
+            android:textColor="#00008B"/>
+
+        <!-- Ngân sách còn lại -->
+        <TextView
+            android:id="@+id/tv_remaining_budget"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ngân sách còn lại: 20,000,000 VNĐ"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#00008B"/>
+
+        <!-- Phần trăm ngân sách đã sử dụng -->
+        <TextView
+            android:id="@+id/tv_budget_percentage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="100% ngân sách đã sử dụng"
+            android:textSize="16sp"
+            android:textColor="#00008B"/>
+    </LinearLayout>
+</LinearLayout>
