@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:title="Home"
+        android:icon="@drawable/home_24dp"
+        android:id="@+id/menu_home"/>
+    <item
+        android:title="Expenses"
+        android:icon="@drawable/payments_24dp"
+        android:id="@+id/menu_expense"/>
+    <item
+        android:title="Budgets"
+        android:icon="@drawable/account_balance_wallet_24dp"
+        android:id="@+id/menu_budget"/>
+    <item
+        android:title="Settings"
+        android:icon="@drawable/settings_24dp"
+        android:id="@+id/menu_setting"/>
+</menu>
