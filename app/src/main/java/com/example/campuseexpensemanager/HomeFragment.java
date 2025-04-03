@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.cardview.widget.CardView;
 
+import com.example.campuseexpensemanager.adapter.CategoryBreakdownAdapter;
 import com.example.campuseexpensemanager.adapter.ExpenseAdapter;
 import com.example.campuseexpensemanager.adapter.NotificationAdapter;
 import com.example.campuseexpensemanager.model.Expenses;
@@ -39,6 +40,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class HomeFragment extends Fragment {
 
@@ -46,17 +48,19 @@ public class HomeFragment extends Fragment {
     TextView tvGreeting, tvTotalSpent, tvBudgetStatus, tvBudgetRemaining;
     ImageView ivProfile;
     ProgressBar pbBudgetProgress;
-    RecyclerView rvRecentExpenses, rvNotifications;
+    RecyclerView rvRecentExpenses, rvNotifications, rvCategoryBreakdown;
     Button btnViewAllExpenses;
     CardView cardView;
     PieChart pieChart;
     List<Notification> notifications = new ArrayList<>();
     NotificationAdapter notificationAdapter;
+    CategoryBreakdownAdapter categoryBreakdownAdapter;
 
     // Data
     List<Expenses> expenses = new ArrayList<>();
-    private float totalBudget = 1000f;
-    private float totalSpent = 0f;
+    float totalBudget = 1000f;
+    float totalSpent = 0f;
+    Map<String, Float> categoryBudgets = new HashMap<>();
 
     // Notification channel ID
     private static final String CHANNEL_ID = "budget_notifications";
@@ -75,6 +79,7 @@ public class HomeFragment extends Fragment {
         tvBudgetRemaining = view.findViewById(R.id.tvBudgetRemaining);
         pbBudgetProgress = view.findViewById(R.id.pbBudgetProgress);
         rvRecentExpenses = view.findViewById(R.id.rvRecentExpenses);
+        rvCategoryBreakdown = view.findViewById(R.id.rvCategoryBreakdown);
         btnViewAllExpenses = view.findViewById(R.id.btnViewAllExpenses);
         cardView = view.findViewById(R.id.cardView);
         pieChart = view.findViewById(R.id.pieChart);
@@ -90,6 +95,7 @@ public class HomeFragment extends Fragment {
         // Setup RecyclerViews
         setupDummyData();
         setupRecentExpensesRecyclerView();
+        setupCategoryBreakdown();
         setupBudgetChart();
 
         // Setup notifications
@@ -111,6 +117,37 @@ public class HomeFragment extends Fragment {
     }
 
     private void setupDummyData() {
+
+        
+        // Set category budgets
+        categoryBudgets.put("Food", 300f);
+        categoryBudgets.put("Transport", 200f);
+        categoryBudgets.put("Entertainment", 200f);
+        categoryBudgets.put("Shopping", 300f);
+    }
+
+    private void setupCategoryBreakdown() {
+        categoryBreakdownAdapter = new CategoryBreakdownAdapter(totalSpent);
+        rvCategoryBreakdown.setAdapter(categoryBreakdownAdapter);
+        rvCategoryBreakdown.setLayoutManager(new LinearLayoutManager(getContext()));
+    }
+
+    private void updateCategoryBreakdown() {
+        Map<String, Float> categoryTotals = new HashMap<>();
+        
+        // Calculate total spent by category
+        for (Expenses expense : expenses) {
+            String category = expense.getCategory();
+            float amount = (float) expense.getMoney();
+            categoryTotals.put(category, categoryTotals.getOrDefault(category, 0f) + amount);
+        }
+
+        // Sort categories by amount spent (descending)
+        List<Map.Entry<String, Float>> sortedCategories = categoryTotals.entrySet().stream()
+                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
+                .collect(Collectors.toList());
+
+        categoryBreakdownAdapter.updateCategories(sortedCategories, totalSpent);
     }
 
     private void createNotificationChannel() {
@@ -154,7 +191,10 @@ public class HomeFragment extends Fragment {
         tvBudgetRemaining.setText("Remaining: $" + String.format("%.2f", (totalBudget - totalSpent)));
         pbBudgetProgress.setProgress((int) ((totalSpent / totalBudget) * 100));
 
-        // Check for budget warning
+        // Update category breakdown
+        updateCategoryBreakdown();
+
+        // Check for budget warnings
         checkBudgetWarning();
     }
 
@@ -222,8 +262,63 @@ public class HomeFragment extends Fragment {
     private void checkBudgetWarning() {
         float percentageSpent = (totalSpent / totalBudget) * 100;
         
+        // Check overall budget
         if (percentageSpent >= 80) {
-            showBudgetWarningNotification();
+            showBudgetWarningNotification("Overall Budget", percentageSpent);
+        }
+
+        // Check category budgets
+        Map<String, Float> categoryTotals = new HashMap<>();
+        for (Expenses expense : expenses) {
+            String category = expense.getCategory();
+            float amount = (float) expense.getMoney();
+            categoryTotals.put(category, categoryTotals.getOrDefault(category, 0f) + amount);
+        }
+
+        for (Map.Entry<String, Float> entry : categoryTotals.entrySet()) {
+            String category = entry.getKey();
+            float spent = entry.getValue();
+            float budget = categoryBudgets.getOrDefault(category, 0f);
+            
+            if (budget > 0) {
+                float categoryPercentage = (spent / budget) * 100;
+                if (categoryPercentage >= 80) {
+                    showBudgetWarningNotification(category, categoryPercentage);
+                }
+            }
+        }
+    }
+
+    private void showBudgetWarningNotification(String category, float percentage) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(requireContext(), 
+                    Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                return;
+            }
+        }
+
+        try {
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(requireContext(), CHANNEL_ID)
+                .setSmallIcon(R.drawable.warning_24dp)
+                .setContentTitle("Budget Warning: " + category)
+                .setContentText(String.format("You've spent %.0f%% of your %s budget", percentage, category))
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(requireContext());
+            notificationManager.notify(notificationId++, builder.build());
+            
+            // Add to notifications list
+            notifications.add(0, new Notification(
+                String.valueOf(notificationId),
+                "Budget Warning: " + category,
+                String.format("You've spent %.0f%% of your %s budget", percentage, category),
+                R.drawable.warning_24dp
+            ));
+            notificationAdapter.updateNotifications(notifications);
+        } catch (SecurityException e) {
+            Toast.makeText(requireContext(), 
+                    "Cannot show notification: permission denied", 
+                    Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -250,40 +345,6 @@ public class HomeFragment extends Fragment {
                         "Notification permission is required for budget alerts", 
                         Toast.LENGTH_LONG).show();
             }
-        }
-    }
-
-    private void showBudgetWarningNotification() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(requireContext(), 
-                    Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-        }
-
-        try {
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(requireContext(), CHANNEL_ID)
-                .setSmallIcon(R.drawable.warning_24dp)
-                .setContentTitle("Budget Warning")
-                .setContentText("You've spent " + String.format("%.0f", (totalSpent / totalBudget) * 100) + "% of your budget")
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-
-            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(requireContext());
-            notificationManager.notify(notificationId++, builder.build());
-            
-            // Add to notifications list
-            notifications.add(0, new Notification(
-                String.valueOf(notificationId),
-                "Budget Warning",
-                "You've spent " + String.format("%.0f", (totalSpent / totalBudget) * 100) + "% of your budget",
-                R.drawable.warning_24dp
-            ));
-            notificationAdapter.updateNotifications(notifications);
-        } catch (SecurityException e) {
-            // Handle the case where permission was revoked
-            Toast.makeText(requireContext(), 
-                    "Cannot show notification: permission denied", 
-                    Toast.LENGTH_SHORT).show();
         }
     }
 }
