@@ -50,7 +50,7 @@ import java.util.stream.Collectors;
 public class HomeFragment extends Fragment {
 
     private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 1001;
-    TextView tvGreeting, tvTotalSpent, tvBudgetStatus, tvBudgetRemaining;
+    TextView tvGreeting, tvBudgetStatus, tvBudgetRemaining, tvExpenseOverviewTotalSpent;
     ImageView ivProfile;
     ProgressBar pbBudgetProgress;
     RecyclerView rvRecentExpenses, rvNotifications, rvCategoryBreakdown;
@@ -73,6 +73,9 @@ public class HomeFragment extends Fragment {
     private static final String CHANNEL_ID = "budget_notifications";
     private int notificationId = 1;
 
+    // Store callback as a field
+    private Runnable dataChangeCallback;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -81,9 +84,9 @@ public class HomeFragment extends Fragment {
         // Initialize views
         tvGreeting = view.findViewById(R.id.tvGreeting);
         ivProfile = view.findViewById(R.id.ivProfile);
-        tvTotalSpent = view.findViewById(R.id.tvTotalSpent);
         tvBudgetStatus = view.findViewById(R.id.tvBudgetStatus);
         tvBudgetRemaining = view.findViewById(R.id.tvBudgetRemaining);
+        tvExpenseOverviewTotalSpent = view.findViewById(R.id.tvExpenseOverviewTotalSpent);
         pbBudgetProgress = view.findViewById(R.id.pbBudgetProgress);
         rvRecentExpenses = view.findViewById(R.id.rvRecentExpenses);
         rvCategoryBreakdown = view.findViewById(R.id.rvCategoryBreakdown);
@@ -95,6 +98,17 @@ public class HomeFragment extends Fragment {
 
         // Initialize database
         expenseDb = new ExpenseDb(requireContext());
+        
+        // Create callback once and store it
+        dataChangeCallback = () -> {
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(this::refreshData);
+            }
+        };
+        
+        // Register the callback
+        expenseDb.addOnDataChangedCallback(dataChangeCallback);
+        
         budgetDb = new BudgetDb(requireContext());
 
         // Get username from arguments
@@ -220,23 +234,31 @@ public class HomeFragment extends Fragment {
     }
 
     private void updateUI() {
-        // Load budget categories
-        List<Budgets> budgetCategories = budgetDb.getAllBudgetCategories();
+        // Load budget categories for current month
+        List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
         
         // Calculate total budget and spent
         totalBudget = 0.0;
         totalSpent = 0.0;
         categoryBudgets.clear();
         
+        // Calculate total spent from expenses
+        for (Expenses expense : expenses) {
+            totalSpent += expense.getMoney();
+        }
+        
+        // Calculate total budget from budget categories
         for (Budgets budget : budgetCategories) {
             totalBudget += budget.getMoney();
-            totalSpent += budget.getSpentAmount();
             categoryBudgets.put(budget.getName(), budget.getMoney());
         }
 
-        tvTotalSpent.setText("$" + String.format("%.2f", totalSpent));
-        tvBudgetStatus.setText("Budget: $" + String.format("%.2f", totalBudget));
-        tvBudgetRemaining.setText("Remaining: $" + String.format("%.2f", (totalBudget - totalSpent)));
+        android.util.Log.d("HomeFragment", "Total spent calculated from expenses: $" + totalSpent);
+
+        // Update UI with proper text formatting
+        tvBudgetStatus.setText(String.format("Budget: $%.2f", totalBudget));
+        tvExpenseOverviewTotalSpent.setText(String.format("Total Spent: $%.2f", totalSpent));
+        tvBudgetRemaining.setText(String.format("Remaining: $%.2f", (totalBudget - totalSpent)));
         
         if (totalBudget > 0) {
             pbBudgetProgress.setProgress((int) ((totalSpent / totalBudget) * 100));
@@ -278,8 +300,8 @@ public class HomeFragment extends Fragment {
         // Setup budget pie chart
         List<PieEntry> budgetEntries = new ArrayList<>();
         
-        // Get budget categories
-        List<Budgets> budgetCategories = budgetDb.getAllBudgetCategories();
+        // Get budget categories for current month
+        List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
         
         // Add budget categories with their spent amounts
         for (Budgets budget : budgetCategories) {
@@ -348,12 +370,6 @@ public class HomeFragment extends Fragment {
         pieChartSpent.animateY(1000);
         pieChartSpent.invalidate();
         
-        // Add a text view to show the total spent amount
-        TextView tvTotalSpentChart = requireActivity().findViewById(R.id.tvTotalSpentChart);
-        if (tvTotalSpentChart != null) {
-            tvTotalSpentChart.setText("Total Spent: $" + String.format("%.2f", totalSpent));
-        }
-        
         // Check for budget warnings
         checkBudgetWarning();
     }
@@ -366,8 +382,8 @@ public class HomeFragment extends Fragment {
             showBudgetWarningNotification("Overall Budget", percentageSpent);
         }
 
-        // Check category budgets
-        List<Budgets> budgetCategories = budgetDb.getAllBudgetCategories();
+        // Check category budgets for current month
+        List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
         for (Budgets budget : budgetCategories) {
             double budgetAmount = budget.getMoney();
             double spentAmount = budget.getSpentAmount();
@@ -445,13 +461,11 @@ public class HomeFragment extends Fragment {
     }
     
     @Override
-    public void onDestroy() {
-        super.onDestroy();
-        if (expenseDb != null) {
-            expenseDb.close();
-        }
-        if (budgetDb != null) {
-            budgetDb.close();
+    public void onDestroyView() {
+        super.onDestroyView();
+        // Remove callback to prevent memory leaks
+        if (expenseDb != null && dataChangeCallback != null) {
+            expenseDb.removeOnDataChangedCallback(dataChangeCallback);
         }
     }
 
@@ -467,9 +481,64 @@ public class HomeFragment extends Fragment {
      * This method is called from MenuActivity when a new expense is added
      */
     public void refreshData() {
-        loadExpenses();
-        updateUI();
-        setupBudgetChart();
-        setupCategoryBreakdown();
+        if (getActivity() != null && isAdded()) {
+            android.util.Log.d("HomeFragment", "Refreshing data");
+            
+            // Load expenses
+            loadExpenses();
+            
+            // Get budget categories for current month
+            List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
+            
+            // Calculate total budget and spent
+            totalBudget = 0.0;
+            totalSpent = 0.0;
+            categoryBudgets.clear();
+            
+            // Calculate total spent from expenses
+            for (Expenses expense : expenses) {
+                totalSpent += expense.getMoney();
+            }
+            
+            // Calculate total budget from budget categories
+            for (Budgets budget : budgetCategories) {
+                totalBudget += budget.getMoney();
+                categoryBudgets.put(budget.getName(), budget.getMoney());
+            }
+
+            android.util.Log.d("HomeFragment", "Total spent calculated from expenses: $" + totalSpent);
+            
+            // Update UI on main thread
+            getActivity().runOnUiThread(() -> {
+                // Update UI with proper text formatting
+                tvBudgetStatus.setText(String.format("Budget: $%.2f", totalBudget));
+                tvExpenseOverviewTotalSpent.setText(String.format("Total Spent: $%.2f", totalSpent));
+                tvBudgetRemaining.setText(String.format("Remaining: $%.2f", (totalBudget - totalSpent)));
+                
+                if (totalBudget > 0) {
+                    pbBudgetProgress.setProgress((int) ((totalSpent / totalBudget) * 100));
+                } else {
+                    pbBudgetProgress.setProgress(0);
+                }
+                
+                // Update pie charts
+                setupBudgetChart();
+                
+                // Update category breakdown
+                updateCategoryBreakdown();
+                
+                // Setup recent expenses
+                setupRecentExpensesRecyclerView();
+                
+                // Check for budget warnings
+                checkBudgetWarning();
+                
+                android.util.Log.d("HomeFragment", "UI updates completed on main thread");
+            });
+            
+            android.util.Log.d("HomeFragment", "Data refresh completed");
+        } else {
+            android.util.Log.d("HomeFragment", "Cannot refresh data: Activity is null or fragment not added");
+        }
     }
 }

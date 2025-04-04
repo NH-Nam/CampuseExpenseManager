@@ -178,12 +178,25 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
         EditText etName = dialogView.findViewById(R.id.etExpenseName);
         EditText etAmount = dialogView.findViewById(R.id.etExpenseAmount);
         EditText etDescription = dialogView.findViewById(R.id.etExpenseDescription);
-        Spinner spCategory = dialogView.findViewById(R.id.spinnerCategory);
+        MaterialAutoCompleteTextView categoryDropdown = dialogView.findViewById(R.id.spinnerCategory);
         
-        // Setup category spinner
+        // Setup category dropdown
         List<Categories> categories = Arrays.asList(Categories.values());
         CategorySpinnerAdapter categoryAdapter = new CategorySpinnerAdapter(this, categories);
-        spCategory.setAdapter(categoryAdapter);
+        categoryDropdown.setAdapter(categoryAdapter);
+        
+        // Set a default selection
+        if (categories.size() > 0) {
+            categoryDropdown.setText(categories.get(0).getDisplayName(), false);
+        }
+        
+        // Make sure the dropdown is properly configured
+        categoryDropdown.setOnItemClickListener((parent, view1, position, id) -> {
+            Categories selectedCategory = (Categories) parent.getItemAtPosition(position);
+            if (selectedCategory != null) {
+                categoryDropdown.setText(selectedCategory.getDisplayName(), false);
+            }
+        });
         
         // Show dialog
         new MaterialAlertDialogBuilder(this)
@@ -193,22 +206,41 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
                 String name = etName.getText().toString();
                 String amountStr = etAmount.getText().toString();
                 String description = etDescription.getText().toString();
-                Categories category = (Categories) spCategory.getSelectedItem();
+                String categoryStr = categoryDropdown.getText().toString();
                 
-                if (name.isEmpty() || amountStr.isEmpty()) {
+                if (name.isEmpty() || amountStr.isEmpty() || categoryStr.isEmpty()) {
                     Toast.makeText(this, "Please fill all required fields", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                
+
                 try {
                     double amount = Double.parseDouble(amountStr);
-                    ExpenseDb expenseDb = new ExpenseDb(this);
-                    expenseDb.addExpense(name, amount, description, category.getDisplayName());
-                    expenseDb.close();
-                    Toast.makeText(this, "Expense added successfully", Toast.LENGTH_SHORT).show();
                     
-                    // Refresh the current fragment
-                    refreshCurrentFragment();
+                    // Find the matching category enum
+                    Categories selectedCategory = null;
+                    for (Categories category : Categories.values()) {
+                        if (category.getDisplayName().equals(categoryStr)) {
+                            selectedCategory = category;
+                            break;
+                        }
+                    }
+                    
+                    if (selectedCategory == null) {
+                        Toast.makeText(this, "Please select a valid category", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    
+                    // Create new expense
+                    ExpenseDb expenseDb = new ExpenseDb(this);
+                    long result = expenseDb.addExpense(name, amount, description, selectedCategory.getDisplayName());
+                    
+                    if (result != -1) {
+                        Toast.makeText(this, "Expense added successfully", Toast.LENGTH_SHORT).show();
+                        // Refresh the expense list
+                        refreshCurrentFragment();
+                    } else {
+                        Toast.makeText(this, "Failed to add expense", Toast.LENGTH_SHORT).show();
+                    }
                 } catch (NumberFormatException e) {
                     Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
                 }

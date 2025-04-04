@@ -5,6 +5,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Filter;
+import android.widget.Filterable;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -14,16 +16,19 @@ import androidx.annotation.Nullable;
 import com.example.campuseexpensemanager.R;
 import com.example.campuseexpensemanager.model.Categories;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class CategorySpinnerAdapter extends ArrayAdapter<Categories> {
-    private Context context;
-    private List<Categories> categories;
+public class CategorySpinnerAdapter extends ArrayAdapter<Categories> implements Filterable {
+    private final Context context;
+    private final List<Categories> categories;
+    private List<Categories> filteredCategories;
 
-    public CategorySpinnerAdapter(@NonNull Context context, @NonNull List<Categories> categories) {
+    public CategorySpinnerAdapter(Context context, List<Categories> categories) {
         super(context, 0, categories);
         this.context = context;
         this.categories = categories;
+        this.filteredCategories = new ArrayList<>(categories);
     }
 
     @NonNull
@@ -52,6 +57,51 @@ public class CategorySpinnerAdapter extends ArrayAdapter<Categories> {
         }
 
         return convertView;
+    }
+
+    @Override
+    public int getCount() {
+        return filteredCategories.size();
+    }
+
+    @Nullable
+    @Override
+    public Categories getItem(int position) {
+        return filteredCategories.get(position);
+    }
+
+    @NonNull
+    @Override
+    public Filter getFilter() {
+        return new Filter() {
+            @Override
+            protected FilterResults performFiltering(CharSequence constraint) {
+                FilterResults results = new FilterResults();
+                List<Categories> filteredList = new ArrayList<>();
+                
+                if (constraint == null || constraint.length() == 0) {
+                    filteredList.addAll(categories);
+                } else {
+                    String filterPattern = constraint.toString().toLowerCase().trim();
+                    for (Categories category : categories) {
+                        if (category.getDisplayName().toLowerCase().contains(filterPattern)) {
+                            filteredList.add(category);
+                        }
+                    }
+                }
+                
+                results.values = filteredList;
+                results.count = filteredList.size();
+                return results;
+            }
+
+            @SuppressWarnings("unchecked")
+            @Override
+            protected void publishResults(CharSequence constraint, FilterResults results) {
+                filteredCategories = (List<Categories>) results.values;
+                notifyDataSetChanged();
+            }
+        };
     }
 
     private void setCategoryIcon(ImageView imageView, String category) {

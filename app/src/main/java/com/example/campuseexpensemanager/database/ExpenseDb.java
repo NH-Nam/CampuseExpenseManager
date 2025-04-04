@@ -20,15 +20,40 @@ import java.util.List;
 public class ExpenseDb {
     private final SQLiteDatabase dbRead, dbWrite;
     private BudgetDb budgetDb;
+    private List<Runnable> dataChangeCallbacks;
     
     public ExpenseDb(@Nullable Context context){
         DatabaseContext helper = new DatabaseContext(context);
         dbRead = helper.getReadableDatabase();
         dbWrite = helper.getWritableDatabase();
         budgetDb = new BudgetDb(context);
+        dataChangeCallbacks = new ArrayList<>();
     }
-    
-    // truy van lam viec voi bang expenses
+
+    public void addOnDataChangedCallback(Runnable callback) {
+        if (!dataChangeCallbacks.contains(callback)) {
+            dataChangeCallbacks.add(callback);
+        }
+    }
+
+    public void removeOnDataChangedCallback(Runnable callback) {
+        dataChangeCallbacks.remove(callback);
+    }
+
+    private void notifyDataChanged() {
+        // Make sure we're on the main thread when notifying
+        android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        for (Runnable callback : dataChangeCallbacks) {
+            if (callback != null) {
+                try {
+                    mainHandler.post(callback);
+                } catch (Exception e) {
+                    // Log the error but continue with other callbacks
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
 
     public long addExpense(String name, double amount, String description, String category) {
         String currentDate = getCurrentDateTime();
@@ -44,6 +69,8 @@ public class ExpenseDb {
         // Update budget category spent amount
         if (result != -1 && category != null && !category.isEmpty()) {
             updateBudgetCategorySpentAmount(category, amount);
+            // Notify all listeners about the data change
+            notifyDataChanged();
         }
         
         return result;
@@ -87,6 +114,8 @@ public class ExpenseDb {
                     updateBudgetCategorySpentAmount(oldCategory, difference);
                 }
             }
+            // Notify all listeners about the data change
+            notifyDataChanged();
         }
         
         return result;
@@ -118,6 +147,7 @@ public class ExpenseDb {
             if (category != null && !category.isEmpty()) {
                 updateBudgetCategorySpentAmount(category, amount);
             }
+            notifyDataChanged();
         }
         
         return result;
@@ -137,6 +167,8 @@ public class ExpenseDb {
         // Update budget category spent amount
         if (result > 0 && category != null && !category.isEmpty()) {
             updateBudgetCategorySpentAmount(category, -amount);
+            // Notify all listeners about the data change
+            notifyDataChanged();
         }
         
         return result;
@@ -246,7 +278,7 @@ public class ExpenseDb {
 
             boolean categoryExists = false;
             for (Budgets budget : budgetCategories) {
-                if (budget != null && budget.getName() != null && budget.getName().equals(category)) {
+                if (budget != null && budget.getCategory() != null && budget.getCategory().equals(category)) {
                     // Update the spent amount
                     double newSpentAmount = budget.getSpentAmount() + amount;
                     budget.setSpentAmount(newSpentAmount);

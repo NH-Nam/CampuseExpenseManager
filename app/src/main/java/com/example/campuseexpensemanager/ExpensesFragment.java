@@ -10,6 +10,7 @@ import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.AutoCompleteTextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -36,18 +37,50 @@ public class ExpensesFragment extends Fragment {
     List<Expenses> expensesList;
     ExpenseDb expenseDb;
     TextView tvTotalExpenses;
+    ExtendedFloatingActionButton fabAddExpense;
+    
+    // Store the callback as a field so we can properly remove it later
+    private Runnable dataChangeCallback;
+
+    private void refreshData() {
+        if (getActivity() != null && isAdded()) {
+            android.util.Log.d("ExpensesFragment", "Refreshing data");
+            // Clear and reload all expenses
+            expensesList.clear();
+            expensesList.addAll(expenseDb.getAllExpenses());
+            
+            // Update total expenses
+            updateTotalExpenses();
+            
+            // Notify adapter
+            if (adapter != null) {
+                adapter.notifyDataSetChanged();
+                android.util.Log.d("ExpensesFragment", "Adapter notified of data change");
+            }
+        } else {
+            android.util.Log.d("ExpensesFragment", "Cannot refresh data: Activity is null or fragment not added");
+        }
+    }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_expenses, container, false);
         
-        // Initialize views
-        recyclerView = view.findViewById(R.id.recyclerViewExpenses);
-        tvTotalExpenses = view.findViewById(R.id.tvTotalExpenses);
-        
         // Initialize database
         expenseDb = new ExpenseDb(requireContext());
+        
+        // Create the callback once and store it
+        dataChangeCallback = this::refreshData;
+        
+        // Register for expense data changes
+        expenseDb.addOnDataChangedCallback(dataChangeCallback);
+        android.util.Log.d("ExpensesFragment", "Callback registered");
+
+        // Initialize views
+        recyclerView = view.findViewById(R.id.recyclerViewExpenses);
+        fabAddExpense = view.findViewById(R.id.fabAddExpense);
+        tvTotalExpenses = view.findViewById(R.id.tvTotalExpenses);
         
         // Setup RecyclerView
         expensesList = new ArrayList<>();
@@ -55,10 +88,28 @@ public class ExpensesFragment extends Fragment {
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter(adapter);
         
-        // Load expenses
-        loadExpenses();
+        // Set up FAB click listener
+        fabAddExpense.setOnClickListener(v -> showAddDialog());
         
+        // Load initial expenses
+        loadExpenses();
         return view;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Refresh data when fragment becomes visible
+        refreshData();
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        // Remove the callback to prevent memory leaks
+        if (expenseDb != null && dataChangeCallback != null) {
+            expenseDb.removeOnDataChangedCallback(dataChangeCallback);
+        }
     }
 
     public void loadExpenses() {
@@ -82,12 +133,26 @@ public class ExpensesFragment extends Fragment {
         EditText etName = view.findViewById(R.id.etExpenseName);
         EditText etAmount = view.findViewById(R.id.etExpenseAmount);
         EditText etDescription = view.findViewById(R.id.etExpenseDescription);
-        Spinner spCategory = view.findViewById(R.id.spinnerCategory);
+        AutoCompleteTextView categoryDropdown = view.findViewById(R.id.spinnerCategory);
         
-        // Setup category spinner with custom adapter
+        // Setup category dropdown with custom adapter
         List<Categories> categories = Arrays.asList(Categories.values());
         CategorySpinnerAdapter categoryAdapter = new CategorySpinnerAdapter(requireContext(), categories);
-        spCategory.setAdapter(categoryAdapter);
+        categoryDropdown.setAdapter(categoryAdapter);
+        
+        // Set a default selection
+        if (categories.size() > 0) {
+            Categories defaultCategory = categories.get(0);
+            categoryDropdown.setText(defaultCategory.getDisplayName());
+        }
+        
+        // Make sure the dropdown is properly configured
+        categoryDropdown.setOnItemClickListener((parent, view1, position, id) -> {
+            Categories selectedCategory = categoryAdapter.getItem(position);
+            if (selectedCategory != null) {
+                categoryDropdown.setText(selectedCategory.getDisplayName());
+            }
+        });
         
         new MaterialAlertDialogBuilder(requireContext())
             .setView(view)
@@ -96,16 +161,35 @@ public class ExpensesFragment extends Fragment {
                 String name = etName.getText().toString();
                 String amountStr = etAmount.getText().toString();
                 String description = etDescription.getText().toString();
-                Categories category = (Categories) spCategory.getSelectedItem();
+                String categoryStr = categoryDropdown.getText().toString().trim();
                 
-                if (name.isEmpty() || amountStr.isEmpty()) {
+                if (name.isEmpty() || amountStr.isEmpty() || categoryStr.isEmpty()) {
                     Toast.makeText(getContext(), "Please fill all required fields", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                
-                double amount = Double.parseDouble(amountStr);
-                expenseDb.addExpense(name, amount, description, category.getDisplayName());
-                loadExpenses();
+
+                try {
+                    double amount = Double.parseDouble(amountStr);
+                    
+                    // Find the matching category enum
+                    Categories selectedCategory = Categories.fromDisplayName(categoryStr);
+                    if (selectedCategory == Categories.OTHER && !categoryStr.equals("Other")) {
+                        Toast.makeText(getContext(), "Please select a valid category", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    
+                    // Create new expense
+                    long result = expenseDb.addExpense(name, amount, description, selectedCategory.getDisplayName());
+                    
+                    if (result != -1) {
+                        Toast.makeText(getContext(), "Expense added successfully", Toast.LENGTH_SHORT).show();
+                        // Let the callback handle the UI update
+                    } else {
+                        Toast.makeText(getContext(), "Failed to add expense", Toast.LENGTH_SHORT).show();
+                    }
+                } catch (NumberFormatException e) {
+                    Toast.makeText(getContext(), "Please enter a valid amount", Toast.LENGTH_SHORT).show();
+                }
             })
             .setNegativeButton("Cancel", null)
             .show();
@@ -117,18 +201,26 @@ public class ExpensesFragment extends Fragment {
         EditText etName = view.findViewById(R.id.etExpenseName);
         EditText etAmount = view.findViewById(R.id.etExpenseAmount);
         EditText etDescription = view.findViewById(R.id.etExpenseDescription);
-        Spinner spCategory = view.findViewById(R.id.spinnerCategory);
+        AutoCompleteTextView categoryDropdown = view.findViewById(R.id.spinnerCategory);
         
-        // Setup category spinner with custom adapter
+        // Setup category dropdown with custom adapter
         List<Categories> categories = Arrays.asList(Categories.values());
         CategorySpinnerAdapter categoryAdapter = new CategorySpinnerAdapter(requireContext(), categories);
-        spCategory.setAdapter(categoryAdapter);
+        categoryDropdown.setAdapter(categoryAdapter);
         
         // Set current values
         etName.setText(expense.getName());
         etAmount.setText(String.valueOf(expense.getMoney()));
         etDescription.setText(expense.getDescription());
-        spCategory.setSelection(categoryAdapter.getPosition(Categories.fromDisplayName(expense.getCategory())));
+        categoryDropdown.setText(expense.getCategory());
+        
+        // Make sure the dropdown is properly configured
+        categoryDropdown.setOnItemClickListener((parent, view1, position, id) -> {
+            Categories selectedCategory = categoryAdapter.getItem(position);
+            if (selectedCategory != null) {
+                categoryDropdown.setText(selectedCategory.getDisplayName());
+            }
+        });
         
         new MaterialAlertDialogBuilder(requireContext())
             .setView(view)
@@ -137,16 +229,28 @@ public class ExpensesFragment extends Fragment {
                 String name = etName.getText().toString();
                 String amountStr = etAmount.getText().toString();
                 String description = etDescription.getText().toString();
-                Categories category = (Categories) spCategory.getSelectedItem();
+                String categoryStr = categoryDropdown.getText().toString().trim();
                 
-                if (name.isEmpty() || amountStr.isEmpty()) {
+                if (name.isEmpty() || amountStr.isEmpty() || categoryStr.isEmpty()) {
                     Toast.makeText(getContext(), "Please fill all required fields", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                
-                double amount = Double.parseDouble(amountStr);
-                expenseDb.editExpense(expense.getId(), name, amount, description, category.getDisplayName());
-                loadExpenses();
+
+                try {
+                    double amount = Double.parseDouble(amountStr);
+                    
+                    // Find the matching category enum
+                    Categories selectedCategory = Categories.fromDisplayName(categoryStr);
+                    if (selectedCategory == Categories.OTHER && !categoryStr.equals("Other")) {
+                        Toast.makeText(getContext(), "Please select a valid category", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    
+                    expenseDb.editExpense(expense.getId(), name, amount, description, selectedCategory.getDisplayName());
+                    // Let the callback handle the UI update
+                } catch (NumberFormatException e) {
+                    Toast.makeText(getContext(), "Please enter a valid amount", Toast.LENGTH_SHORT).show();
+                }
             })
             .setNegativeButton("Cancel", null)
             .show();
@@ -158,7 +262,7 @@ public class ExpensesFragment extends Fragment {
             .setMessage("Are you sure you want to delete this expense?")
             .setPositiveButton("Delete", (dialog, which) -> {
                 expenseDb.deleteExpense(expense.getId());
-                loadExpenses();
+                // Let the callback handle the UI update
             })
             .setNegativeButton("Cancel", null)
             .show();

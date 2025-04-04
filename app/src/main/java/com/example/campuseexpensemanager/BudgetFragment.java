@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.campuseexpensemanager.adapter.BudgetCategoryAdapter;
 import com.example.campuseexpensemanager.database.BudgetDb;
+import com.example.campuseexpensemanager.database.ExpenseDb;
 import com.example.campuseexpensemanager.model.Budgets;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -29,6 +30,7 @@ import java.util.List;
 
 public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.OnBudgetCategoryClickListener {
     private BudgetDb budgetDb;
+    private ExpenseDb expenseDb;
     private RecyclerView recyclerView;
     private BudgetCategoryAdapter adapter;
     private TextView totalBudgetTextView;
@@ -38,16 +40,58 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
     private MaterialButton addCategoryButton;
     private ExtendedFloatingActionButton fabAddCategory;
     private List<Budgets> budgetCategories;
+    
+    // Store the callback as a field so we can properly remove it later
+    private Runnable dataChangeCallback;
 
     private static final String[] PREDEFINED_CATEGORIES = {
         "Food", "Transportation", "Entertainment", "Shopping", "Bills", "Education", "Health"
     };
+
+    private void refreshData() {
+        if (getActivity() != null && isAdded()) {
+            android.util.Log.d("BudgetFragment", "Refreshing budget data");
+            // Clear and reload budget categories
+            budgetCategories.clear();
+            budgetCategories.addAll(budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth()));
+            
+            // Update budget summary
+            updateBudgetSummary();
+            
+            // Notify adapter
+            if (adapter != null) {
+                adapter.notifyDataSetChanged();
+                android.util.Log.d("BudgetFragment", "Budget adapter notified of data change");
+            }
+        } else {
+            android.util.Log.d("BudgetFragment", "Cannot refresh data: Activity is null or fragment not added");
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Refresh data when fragment becomes visible
+        refreshData();
+    }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_budget, container, false);
         budgetDb = new BudgetDb(requireContext());
+        expenseDb = new ExpenseDb(requireContext());
+        
+        // Create the callback once and store it
+        dataChangeCallback = () -> {
+            android.util.Log.d("BudgetFragment", "Data change callback triggered");
+            refreshData();
+        };
+        
+        // Register for expense data changes
+        expenseDb.addOnDataChangedCallback(dataChangeCallback);
+        android.util.Log.d("BudgetFragment", "Callback registered for expense data changes");
+        
         budgetCategories = new ArrayList<>();
 
         initializeViews(view);
@@ -79,9 +123,11 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
 
     public void loadBudgetCategories() {
         budgetCategories.clear();
-        budgetCategories.addAll(budgetDb.getAllBudgetCategories());
-        adapter.notifyDataSetChanged();
+        budgetCategories.addAll(budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth()));
         updateBudgetSummary();
+        if (adapter != null) {
+            adapter.notifyDataSetChanged();
+        }
     }
 
     private void updateBudgetSummary() {
@@ -93,13 +139,24 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
             totalSpent += category.getSpentAmount();
         }
 
-        double remainingBudget = totalBudget - totalSpent;
-        int progressPercentage = totalBudget > 0 ? (int) ((totalSpent / totalBudget) * 100) : 0;
+        final double finalTotalBudget = totalBudget;
+        final double finalTotalSpent = totalSpent;
+        final double remainingBudget = totalBudget - totalSpent;
+        final int progressPercentage = totalBudget > 0 ? (int) ((totalSpent / totalBudget) * 100) : 0;
 
-        totalBudgetTextView.setText(String.format("Total Budget: $%.2f", totalBudget));
-        totalSpentTextView.setText(String.format("Total Spent: $%.2f", totalSpent));
-        remainingBudgetTextView.setText(String.format("Remaining: $%.2f", remainingBudget));
-        progressIndicator.setProgress(progressPercentage);
+        if (getActivity() != null && isAdded()) {
+            getActivity().runOnUiThread(() -> {
+                try {
+                    totalBudgetTextView.setText(String.format("Total Budget: $%.2f", finalTotalBudget));
+                    totalSpentTextView.setText(String.format("Total Spent: $%.2f", finalTotalSpent));
+                    remainingBudgetTextView.setText(String.format("Remaining: $%.2f", remainingBudget));
+                    progressIndicator.setProgress(progressPercentage);
+                    android.util.Log.d("BudgetFragment", "Budget summary updated - Total: $" + finalTotalBudget + ", Spent: $" + finalTotalSpent);
+                } catch (Exception e) {
+                    android.util.Log.e("BudgetFragment", "Error updating budget summary", e);
+                }
+            });
+        }
     }
 
     private void showAddEditBudgetDialog(Budgets budgetCategory) {
@@ -184,6 +241,15 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
     @Override
     public void onDeleteClick(Budgets budgetCategory) {
         showDeleteConfirmationDialog(budgetCategory);
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        // Remove the callback to prevent memory leaks
+        if (expenseDb != null && dataChangeCallback != null) {
+            expenseDb.removeOnDataChangedCallback(dataChangeCallback);
+        }
     }
 
     @Override

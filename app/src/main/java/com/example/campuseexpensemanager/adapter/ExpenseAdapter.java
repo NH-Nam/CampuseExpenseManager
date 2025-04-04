@@ -87,10 +87,10 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
                 iconResource = R.drawable.paid_24dp;
                 break;
             case "education":
-                iconResource = R.drawable.account_balance_wallet_24dp;
+                iconResource = R.drawable.school_24dp;
                 break;
             case "health":
-                iconResource = R.drawable.payments_24dp;
+                iconResource = R.drawable.local_hospital_24dp;
                 break;
             default:
                 iconResource = R.drawable.category_24dp;

@@ -40,14 +40,6 @@
                         android:text="Hello, User!"
                         android:textSize="24sp"
                         android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/tvTotalSpent"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Total Spent: $0.00"
-                        android:textSize="16sp" />
                 </LinearLayout>
 
                 <com.google.android.material.imageview.ShapeableImageView
@@ -115,16 +107,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="200dp"
                         android:padding="8dp"/>
-
-                    <TextView
-                        android:id="@+id/tvTotalSpentChart"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Total Spent: $0.00"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:gravity="center"
-                        android:padding="16dp"/>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -166,7 +148,7 @@
                         android:layout_marginBottom="8dp">
 
                         <TextView
-                            android:id="@+id/tvTotalSpent"
+                            android:id="@+id/tvExpenseOverviewTotalSpent"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"

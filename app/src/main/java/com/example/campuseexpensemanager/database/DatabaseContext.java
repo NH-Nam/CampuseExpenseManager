@@ -9,7 +9,7 @@ import androidx.annotation.Nullable;
 
 public class DatabaseContext extends SQLiteOpenHelper {
     private static final String DB_NAME = "campus_expenses";
-    private static final int DB_VERSION = 7; // Increment the database version to 7
+    private static final int DB_VERSION = 7; // Revert database version
 
     // User table
     public static final String TABLE_NAME = "users";
@@ -106,6 +106,7 @@ public class DatabaseContext extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // Handle upgrades only
         if (oldVersion < 4) {
             db.execSQL("ALTER TABLE " + TABLE_NAME_BUDGET + " ADD COLUMN " + CATEGORY_BUDGET + " VARCHAR(100)");
         }
@@ -148,14 +149,16 @@ public class DatabaseContext extends SQLiteOpenHelper {
                 db.execSQL("ALTER TABLE " + TABLE_NAME_BUDGET + " ADD COLUMN " + SPENT_AMOUNT + " REAL DEFAULT 0");
             }
         }
-
-        if (oldVersion < newVersion) {
-            db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
-            db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_BUDGET);
-            db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_EXPENSE);
-            db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_BUDGET_CATEGORY);
-            onCreate(db);
-        }
+    }
+    
+    @Override
+    public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // Handle downgrades by dropping and recreating tables
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_BUDGET);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_EXPENSE);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_BUDGET_CATEGORY);
+        onCreate(db);
     }
 
     @Override

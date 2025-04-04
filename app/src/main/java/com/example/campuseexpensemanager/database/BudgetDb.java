@@ -48,6 +48,17 @@ public class BudgetDb {
         return dbWrite.update(DatabaseContext.TABLE_NAME_BUDGET, values, selection, selectionArgs);
     }
 
+    public int updateSpentAmount(long id, double spentAmount) {
+        ContentValues values = new ContentValues();
+        values.put(DatabaseContext.SPENT_AMOUNT, spentAmount);
+        values.put(DatabaseContext.UPDATED_AT, getCurrentDateTime());
+
+        String selection = DatabaseContext.ID_BUDGET + " = ?";
+        String[] selectionArgs = {String.valueOf(id)};
+
+        return dbWrite.update(DatabaseContext.TABLE_NAME_BUDGET, values, selection, selectionArgs);
+    }
+
     public int deleteBudgetCategory(long id) {
         ContentValues values = new ContentValues();
         values.put(DatabaseContext.DELETED_AT, getCurrentDateTime());
@@ -133,18 +144,46 @@ public class BudgetDb {
     }
 
     public List<Budgets> getBudgetCategoriesByMonth(String monthYear) {
-        // Since the budgets table doesn't have a month field, we'll return all budgets
-        // and filter them in the fragment
-        List<Budgets> allBudgets = getAllBudgetCategories();
-        List<Budgets> filteredBudgets = new ArrayList<>();
+        List<Budgets> budgetCategories = new ArrayList<>();
+        String[] projection = {
+                DatabaseContext.ID_BUDGET,
+                DatabaseContext.NAME_BUDGET,
+                DatabaseContext.MONEY_BUDGET,
+                DatabaseContext.CATEGORY_BUDGET,
+                DatabaseContext.SPENT_AMOUNT,
+                DatabaseContext.CREATED_AT
+        };
+
+        String selection = DatabaseContext.DELETED_AT + " IS NULL";
+        String sortOrder = DatabaseContext.CATEGORY_BUDGET + " ASC";
         
-        for (Budgets budget : allBudgets) {
-            if (budget.getMonthYear() != null && budget.getMonthYear().equals(monthYear)) {
-                filteredBudgets.add(budget);
-            }
+        Cursor cursor = dbRead.query(
+                DatabaseContext.TABLE_NAME_BUDGET,
+                projection,
+                selection,
+                null,
+                null,
+                null,
+                sortOrder
+        );
+
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                Budgets budgetCategory = new Budgets();
+                budgetCategory.setId((int) cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseContext.ID_BUDGET)));
+                budgetCategory.setName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.NAME_BUDGET)));
+                budgetCategory.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CATEGORY_BUDGET)));
+                budgetCategory.setMoney(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseContext.MONEY_BUDGET)));
+                budgetCategory.setSpentAmount(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseContext.SPENT_AMOUNT)));
+                budgetCategory.setMonthYear(monthYear);
+                budgetCategory.setCreatedAt(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CREATED_AT)));
+                
+                budgetCategories.add(budgetCategory);
+            } while (cursor.moveToNext());
+            cursor.close();
         }
-        
-        return filteredBudgets;
+
+        return budgetCategories;
     }
 
     public Budgets getBudgetCategoryById(long id) {
@@ -185,17 +224,6 @@ public class BudgetDb {
         }
 
         return budgetCategory;
-    }
-
-    public int updateSpentAmount(long id, double spentAmount) {
-        ContentValues values = new ContentValues();
-        values.put(DatabaseContext.SPENT_AMOUNT, spentAmount);
-        values.put(DatabaseContext.UPDATED_AT, getCurrentDateTime());
-
-        String selection = DatabaseContext.ID_BUDGET + " = ?";
-        String[] selectionArgs = {String.valueOf(id)};
-
-        return dbWrite.update(DatabaseContext.TABLE_NAME_BUDGET, values, selection, selectionArgs);
     }
 
     public void close() {
