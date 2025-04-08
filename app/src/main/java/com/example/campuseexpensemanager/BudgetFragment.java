@@ -226,13 +226,25 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
         builder.create().show();
     }
 
-    private void showDeleteConfirmationDialog(Budgets budgetCategory) {
+    private void showDeleteDialog(Budgets budgetCategory) {
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Delete Budget Category")
                 .setMessage("Are you sure you want to delete this budget category?")
                 .setPositiveButton("Delete", (dialog, which) -> {
-                    budgetDb.deleteBudgetCategory(budgetCategory.getId());
-                    loadBudgetCategories();
+                    int result = budgetDb.deleteBudgetCategory(budgetCategory.getId());
+                    if (result == -1) {
+                        // There are expenses in this category
+                        new MaterialAlertDialogBuilder(requireContext())
+                                .setTitle("Cannot Delete Category")
+                                .setMessage("This budget category has associated expenses. Please delete all expenses in this category first.")
+                                .setPositiveButton("OK", null)
+                                .show();
+                    } else if (result > 0) {
+                        Toast.makeText(requireContext(), "Budget category deleted successfully", Toast.LENGTH_SHORT).show();
+                        refreshData();
+                    } else {
+                        Toast.makeText(requireContext(), "Failed to delete budget category", Toast.LENGTH_SHORT).show();
+                    }
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -245,7 +257,7 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
 
     @Override
     public void onDeleteClick(Budgets budgetCategory) {
-        showDeleteConfirmationDialog(budgetCategory);
+        showDeleteDialog(budgetCategory);
     }
 
     @Override

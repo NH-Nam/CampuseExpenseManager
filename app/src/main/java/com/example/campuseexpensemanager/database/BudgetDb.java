@@ -92,14 +92,67 @@ public class BudgetDb {
         return dbWrite.update(DatabaseContext.TABLE_NAME_BUDGET, values, selection, selectionArgs);
     }
 
+    public boolean hasExpensesInCategory(String category) {
+        String query = "SELECT COUNT(*) FROM " + DatabaseContext.TABLE_NAME_EXPENSE +
+                " WHERE " + DatabaseContext.CATEGORY_EXPENSE + " = ? AND " + 
+                DatabaseContext.DELETED_AT + " IS NULL";
+        Cursor cursor = dbRead.rawQuery(query, new String[]{category});
+
+        boolean hasExpenses = false;
+        if (cursor.moveToFirst()) {
+            hasExpenses = cursor.getInt(0) > 0;
+        }
+        cursor.close();
+        return hasExpenses;
+    }
+
     public int deleteBudgetCategory(long id) {
+        // First get the category name
+        String category = getCategoryNameById(id);
+        if (category == null) {
+            return 0;
+        }
+
+        // Check if there are any expenses in this category
+        if (hasExpensesInCategory(category)) {
+            return -1; // Return -1 to indicate there are expenses
+        }
+
+        // If no expenses, proceed with deletion
         ContentValues values = new ContentValues();
         values.put(DatabaseContext.DELETED_AT, getCurrentDateTime());
 
         String selection = DatabaseContext.ID_BUDGET + " = ?";
         String[] selectionArgs = {String.valueOf(id)};
 
-        return dbWrite.update(DatabaseContext.TABLE_NAME_BUDGET, values, selection, selectionArgs);
+        int result = dbWrite.update(DatabaseContext.TABLE_NAME_BUDGET, values, selection, selectionArgs);
+        if (result > 0) {
+            notifyDataChanged();
+        }
+        return result;
+    }
+
+    private String getCategoryNameById(long id) {
+        String[] projection = {DatabaseContext.CATEGORY_BUDGET};
+        String selection = DatabaseContext.ID_BUDGET + " = ?";
+        String[] selectionArgs = {String.valueOf(id)};
+
+        Cursor cursor = dbRead.query(
+                DatabaseContext.TABLE_NAME_BUDGET,
+                projection,
+                selection,
+                selectionArgs,
+                null,
+                null,
+                null
+        );
+
+        String category = null;
+        if (cursor.moveToFirst()) {
+            category = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CATEGORY_BUDGET));
+        }
+        cursor.close();
+        return category;
     }
 
     public List<Budgets> getAllBudgetCategories() {
