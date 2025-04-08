@@ -14,8 +14,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.campuseexpensemanager.database.UserDb;
 
 public class UpdatePasswordActivity extends AppCompatActivity {
-    Button btnSaveChangePw;
-    EditText edtNewPw, edtConfirmNewPw;
+    Button btnUpdatePassword, btnCancel;
+    EditText edtCurrentPassword, edtNewPassword, edtConfirmPassword;
     UserDb userDb;
     Intent intent;
     Bundle bundle;
@@ -26,9 +26,14 @@ public class UpdatePasswordActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_update_password);
-        btnSaveChangePw = findViewById(R.id.btnSaveChangePassword);
-        edtNewPw = findViewById(R.id.edtNewPassword);
-        edtConfirmNewPw = findViewById(R.id.edtConfirmNewPassword);
+        
+        // Initialize views
+        btnUpdatePassword = findViewById(R.id.btnUpdatePassword);
+        btnCancel = findViewById(R.id.btnCancel);
+        edtCurrentPassword = findViewById(R.id.edtCurrentPassword);
+        edtNewPassword = findViewById(R.id.edtNewPassword);
+        edtConfirmPassword = findViewById(R.id.edtConfirmPassword);
+        
         userDb = new UserDb(UpdatePasswordActivity.this);
         intent = getIntent();
         bundle = intent.getExtras();
@@ -37,30 +42,43 @@ public class UpdatePasswordActivity extends AppCompatActivity {
             email = bundle.getString("EMAIL_FORGET_PW", "");
         }
 
-        btnSaveChangePw.setOnClickListener(new View.OnClickListener() {
+        btnUpdatePassword.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String newPassword = edtNewPw.getText().toString().trim();
-                if (TextUtils.isEmpty(newPassword)){
-                    edtNewPw.setError("New password can not empty");
+                String currentPassword = edtCurrentPassword.getText().toString().trim();
+                if (TextUtils.isEmpty(currentPassword)) {
+                    edtCurrentPassword.setError("Current password cannot be empty");
                     return;
                 }
-                String confirmNewPw = edtConfirmNewPw.getText().toString().trim();
-                if (!confirmNewPw.equals(newPassword)){
-                    edtConfirmNewPw.setError("Confirm new password not equals new password");
+                
+                String newPassword = edtNewPassword.getText().toString().trim();
+                if (TextUtils.isEmpty(newPassword)) {
+                    edtNewPassword.setError("New password cannot be empty");
                     return;
                 }
+                
+                String confirmPassword = edtConfirmPassword.getText().toString().trim();
+                if (!confirmPassword.equals(newPassword)) {
+                    edtConfirmPassword.setError("Confirm password does not match new password");
+                    return;
+                }
+                
                 int update = userDb.changePassword(newPassword, account, email);
-                if (update == -1){
-                    // fail
-                    Toast.makeText(UpdatePasswordActivity.this, "Change password fail, please try again", Toast.LENGTH_SHORT).show();
+                if (update == -1) {
+                    Toast.makeText(UpdatePasswordActivity.this, "Change password failed, please try again", Toast.LENGTH_SHORT).show();
                 } else {
-                    // success
-                    Toast.makeText(UpdatePasswordActivity.this, "Change password success", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(UpdatePasswordActivity.this, "Password changed successfully", Toast.LENGTH_SHORT).show();
                     Intent intentLogin = new Intent(UpdatePasswordActivity.this, SignInActivity.class);
                     startActivity(intentLogin);
                     finish();
                 }
+            }
+        });
+
+        btnCancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
             }
         });
     }

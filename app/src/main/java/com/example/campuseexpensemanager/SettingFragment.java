@@ -5,16 +5,15 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.ListView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.campuseexpensemanager.adapter.CategorySpinnerAdapter;
+import com.example.campuseexpensemanager.adapter.CategoryAdapter;
 import com.example.campuseexpensemanager.database.CategoryDb;
 import com.example.campuseexpensemanager.dialog.AddCategoryDialog;
 import com.example.campuseexpensemanager.model.Category;
@@ -25,8 +24,8 @@ import java.util.List;
 public class SettingFragment extends Fragment {
     private CategoryDb categoryDb;
     private List<Category> categories;
-    private ArrayAdapter<Category> adapter;
-    private ListView listView;
+    private CategoryAdapter adapter;
+    private RecyclerView recyclerView;
 
     @Nullable
     @Override
@@ -37,8 +36,10 @@ public class SettingFragment extends Fragment {
         categoryDb = new CategoryDb(requireContext());
 
         // Initialize views
-        listView = view.findViewById(R.id.listViewCategories);
-        Button btnAddCategory = view.findViewById(R.id.btnAddCategory);
+        recyclerView = view.findViewById(R.id.listViewCategories);
+        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        
+        com.google.android.material.button.MaterialButton btnAddCategory = view.findViewById(R.id.btnAddCategory);
 
         // Load categories
         loadCategories();
@@ -46,27 +47,23 @@ public class SettingFragment extends Fragment {
         // Setup add category button
         btnAddCategory.setOnClickListener(v -> showAddCategoryDialog());
 
-        // Setup list item click listener
-        listView.setOnItemClickListener((parent, view1, position, id) -> {
-            Category category = categories.get(position);
-            if (category.isCustom()) {
-                showCategoryOptionsDialog(category);
-            }
-        });
-
         return view;
     }
 
     private void loadCategories() {
         categories = categoryDb.getAllCategories();
-        adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_list_item_1, categories);
-        listView.setAdapter(adapter);
+        adapter = new CategoryAdapter(categories, category -> {
+            if (category.isCustom()) {
+                showCategoryOptionsDialog(category);
+            }
+        });
+        recyclerView.setAdapter(adapter);
     }
 
     private void showAddCategoryDialog() {
         AddCategoryDialog dialog = new AddCategoryDialog(requireContext(), categoryDb, newCategory -> {
             categories.add(newCategory);
-            adapter.notifyDataSetChanged();
+            adapter.updateCategories(categories);
         });
         dialog.show();
     }
@@ -90,7 +87,7 @@ public class SettingFragment extends Fragment {
             int position = categories.indexOf(category);
             if (position != -1) {
                 categories.set(position, updatedCategory);
-                adapter.notifyDataSetChanged();
+                adapter.updateCategories(categories);
             }
         });
         dialog.setCategoryToEdit(category);
@@ -105,7 +102,7 @@ public class SettingFragment extends Fragment {
                     int result = categoryDb.deleteCategory(category.getId());
                     if (result > 0) {
                         categories.remove(category);
-                        adapter.notifyDataSetChanged();
+                        adapter.updateCategories(categories);
                         Toast.makeText(requireContext(), "Category deleted", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(requireContext(), "Failed to delete category", Toast.LENGTH_SHORT).show();

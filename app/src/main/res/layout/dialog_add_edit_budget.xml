@@ -4,45 +4,52 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="24dp">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Budget Category"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="16dp"/>
+    android:padding="16dp">
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:hint="Category"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+        app:boxCornerRadiusTopStart="16dp"
+        app:boxCornerRadiusTopEnd="16dp"
+        app:boxCornerRadiusBottomStart="16dp"
+        app:boxCornerRadiusBottomEnd="16dp"
+        app:boxStrokeColor="@color/purple_500"
+        app:hintTextColor="@color/purple_500">
 
         <AutoCompleteTextView
             android:id="@+id/spinnerCategory"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:hint="Category"
             android:inputType="none"
             android:focusable="false"
-            android:clickable="true" />
+            android:clickable="true"
+            android:textColor="@color/black"
+            android:textColorHint="@color/black"/>
 
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Budget Amount"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        android:layout_marginTop="16dp"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        app:boxCornerRadiusTopStart="16dp"
+        app:boxCornerRadiusTopEnd="16dp"
+        app:boxCornerRadiusBottomStart="16dp"
+        app:boxCornerRadiusBottomEnd="16dp"
+        app:boxStrokeColor="@color/purple_500"
+        app:hintTextColor="@color/purple_500">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/editTextBudgetAmount"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:hint="Amount"
             android:inputType="numberDecimal"
-            android:maxLines="1" />
+            android:textColor="@color/black"
+            android:textColorHint="@color/black"/>
 
     </com.google.android.material.textfield.TextInputLayout>
 
