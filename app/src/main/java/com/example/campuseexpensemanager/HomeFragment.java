@@ -474,6 +474,7 @@ public class HomeFragment extends Fragment {
         super.onResume();
         loadExpenses();
         updateUI();
+        setupBudgetChart();
     }
     
     /**
