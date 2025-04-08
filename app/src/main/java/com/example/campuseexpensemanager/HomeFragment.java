@@ -46,6 +46,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import android.content.SharedPreferences;
+import android.content.Context;
 
 public class HomeFragment extends Fragment {
 
@@ -70,8 +75,11 @@ public class HomeFragment extends Fragment {
     Map<String, Double> categoryBudgets = new HashMap<>();
 
     // Notification channel ID
-    private static final String CHANNEL_ID = "budget_notifications";
-    private int notificationId = 1;
+    private static final String CHANNEL_ID = "budget_alerts";
+    private static final int NOTIFICATION_ID = 1001;
+    private static final String PREF_NAME = "budget_notifications";
+    private boolean isRefreshing = false;
+    private SharedPreferences sharedPreferences;
 
     // Store callback as a field
     private Runnable dataChangeCallback;
@@ -80,6 +88,9 @@ public class HomeFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
+
+        // Initialize SharedPreferences
+        sharedPreferences = requireContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
 
         // Initialize views
         tvGreeting = view.findViewById(R.id.tvGreeting);
@@ -101,7 +112,7 @@ public class HomeFragment extends Fragment {
         
         // Create callback once and store it
         dataChangeCallback = () -> {
-            if (getActivity() != null) {
+            if (getActivity() != null && !isRefreshing) {
                 getActivity().runOnUiThread(this::refreshData);
             }
         };
@@ -118,7 +129,7 @@ public class HomeFragment extends Fragment {
         }
         tvGreeting.setText("Hello, " + username);
 
-        // Setup notifications first to avoid null pointer exceptions
+        // Setup notifications
         setupNotifications();
         
         // Setup RecyclerViews
@@ -280,20 +291,6 @@ public class HomeFragment extends Fragment {
         notificationAdapter = new NotificationAdapter(notifications);
         rvNotifications.setAdapter(notificationAdapter);
         rvNotifications.setLayoutManager(new LinearLayoutManager(getContext()));
-        
-        // Add sample notifications
-        addSampleNotifications();
-    }
-
-    private void addSampleNotifications() {
-        notifications.add(new Notification(
-            "1",
-            "Budget Warning",
-            "You've spent 80% of your monthly budget",
-            R.drawable.warning_24dp
-        ));
-        
-        notificationAdapter.updateNotifications(notifications);
     }
 
     private void setupBudgetChart() {
@@ -374,12 +371,32 @@ public class HomeFragment extends Fragment {
         checkBudgetWarning();
     }
 
+    private String getLastWarningKey(String category) {
+        String currentMonth = new SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(new Date());
+        return String.format("%s_%s_last_warning", category, currentMonth);
+    }
+
+    private boolean hasShownWarningThisMonth(String category) {
+        return sharedPreferences.getBoolean(getLastWarningKey(category), false);
+    }
+
+    private void markWarningShown(String category) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean(getLastWarningKey(category), true);
+        editor.apply();
+    }
+
     private void checkBudgetWarning() {
+        if (isRefreshing) {
+            return;
+        }
+
         double percentageSpent = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
         
         // Check overall budget
-        if (percentageSpent >= 80) {
+        if (percentageSpent >= 80 && !hasShownWarningThisMonth("Overall")) {
             showBudgetWarningNotification("Overall Budget", percentageSpent);
+            markWarningShown("Overall");
         }
 
         // Check category budgets for current month
@@ -390,8 +407,9 @@ public class HomeFragment extends Fragment {
             
             if (budgetAmount > 0) {
                 double categoryPercentage = (spentAmount / budgetAmount) * 100;
-                if (categoryPercentage >= 80) {
+                if (categoryPercentage >= 80 && !hasShownWarningThisMonth(budget.getName())) {
                     showBudgetWarningNotification(budget.getName(), categoryPercentage);
+                    markWarningShown(budget.getName());
                 }
             }
         }
@@ -413,11 +431,13 @@ public class HomeFragment extends Fragment {
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
 
             NotificationManagerCompat notificationManager = NotificationManagerCompat.from(requireContext());
-            notificationManager.notify(notificationId++, builder.build());
+            // Use a unique ID for each category by combining base ID with category hashcode
+            int uniqueId = NOTIFICATION_ID + Math.abs(category.hashCode());
+            notificationManager.notify(uniqueId, builder.build());
             
             // Add to notifications list
             notifications.add(0, new Notification(
-                String.valueOf(notificationId),
+                String.valueOf(uniqueId),
                 "Budget Warning: " + category,
                 String.format("You've spent %.0f%% of your %s budget", percentage, category),
                 R.drawable.warning_24dp
@@ -440,22 +460,6 @@ public class HomeFragment extends Fragment {
                     Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 
                         NOTIFICATION_PERMISSION_REQUEST_CODE);
-            }
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                         @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted, create notification channel
-                createNotificationChannel();
-            } else {
-                Toast.makeText(requireContext(), 
-                        "Notification permission is required for budget alerts", 
-                        Toast.LENGTH_LONG).show();
             }
         }
     }
@@ -482,60 +486,63 @@ public class HomeFragment extends Fragment {
      * This method is called from MenuActivity when a new expense is added
      */
     public void refreshData() {
-        if (getActivity() != null && isAdded()) {
+        if (getActivity() != null && isAdded() && !isRefreshing) {
             android.util.Log.d("HomeFragment", "Refreshing data");
+            isRefreshing = true;
             
-            // Load expenses
-            loadExpenses();
-            
-            // Get budget categories for current month
-            List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
-            
-            // Calculate total budget and spent
-            totalBudget = 0.0;
-            totalSpent = 0.0;
-            categoryBudgets.clear();
-            
-            // Calculate total spent from expenses
-            for (Expenses expense : expenses) {
-                totalSpent += expense.getMoney();
-            }
-            
-            // Calculate total budget from budget categories
-            for (Budgets budget : budgetCategories) {
-                totalBudget += budget.getMoney();
-                categoryBudgets.put(budget.getName(), budget.getMoney());
-            }
-
-            android.util.Log.d("HomeFragment", "Total spent calculated from expenses: $" + totalSpent);
-            
-            // Update UI on main thread
-            getActivity().runOnUiThread(() -> {
-                // Update UI with proper text formatting
-                tvBudgetStatus.setText(String.format("Budget: $%.2f", totalBudget));
-                tvExpenseOverviewTotalSpent.setText(String.format("Total Spent: $%.2f", totalSpent));
-                tvBudgetRemaining.setText(String.format("Remaining: $%.2f", (totalBudget - totalSpent)));
+            try {
+                // Load expenses
+                loadExpenses();
                 
-                if (totalBudget > 0) {
-                    pbBudgetProgress.setProgress((int) ((totalSpent / totalBudget) * 100));
-                } else {
-                    pbBudgetProgress.setProgress(0);
+                // Get budget categories for current month
+                List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
+                
+                // Calculate total budget and spent
+                totalBudget = 0.0;
+                totalSpent = 0.0;
+                categoryBudgets.clear();
+                
+                // Calculate total spent from expenses
+                for (Expenses expense : expenses) {
+                    totalSpent += expense.getMoney();
                 }
                 
-                // Update pie charts
-                setupBudgetChart();
+                // Calculate total budget from budget categories
+                for (Budgets budget : budgetCategories) {
+                    totalBudget += budget.getMoney();
+                    categoryBudgets.put(budget.getName(), budget.getMoney());
+                }
+
+                android.util.Log.d("HomeFragment", "Total spent calculated from expenses: $" + totalSpent);
                 
-                // Update category breakdown
-                updateCategoryBreakdown();
-                
-                // Setup recent expenses
-                setupRecentExpensesRecyclerView();
-                
-                // Check for budget warnings
-                checkBudgetWarning();
-                
-                android.util.Log.d("HomeFragment", "UI updates completed on main thread");
-            });
+                // Update UI on main thread
+                getActivity().runOnUiThread(() -> {
+                    // Update UI with proper text formatting
+                    tvBudgetStatus.setText(String.format("Budget: $%.2f", totalBudget));
+                    tvExpenseOverviewTotalSpent.setText(String.format("Total Spent: $%.2f", totalSpent));
+                    tvBudgetRemaining.setText(String.format("Remaining: $%.2f", (totalBudget - totalSpent)));
+                    
+                    if (totalBudget > 0) {
+                        pbBudgetProgress.setProgress((int) ((totalSpent / totalBudget) * 100));
+                    } else {
+                        pbBudgetProgress.setProgress(0);
+                    }
+                    
+                    // Update pie charts
+                    setupBudgetChart();
+                    
+                    // Update category breakdown
+                    updateCategoryBreakdown();
+                    
+                    // Setup recent expenses
+                    setupRecentExpensesRecyclerView();
+                    
+                    // Check for budget warnings
+                    checkBudgetWarning();
+                });
+            } finally {
+                isRefreshing = false;
+            }
             
             android.util.Log.d("HomeFragment", "Data refresh completed");
         } else {
