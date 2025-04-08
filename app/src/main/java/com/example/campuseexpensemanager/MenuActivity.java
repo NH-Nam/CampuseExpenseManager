@@ -22,9 +22,11 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.example.campuseexpensemanager.adapter.CategorySpinnerAdapter;
 import com.example.campuseexpensemanager.adapter.ViewPagerAdapter;
 import com.example.campuseexpensemanager.database.BudgetDb;
+import com.example.campuseexpensemanager.database.CategoryDb;
 import com.example.campuseexpensemanager.database.ExpenseDb;
 import com.example.campuseexpensemanager.model.Budgets;
 import com.example.campuseexpensemanager.model.Categories;
+import com.example.campuseexpensemanager.model.Category;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
@@ -181,20 +183,21 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
         MaterialAutoCompleteTextView categoryDropdown = dialogView.findViewById(R.id.spinnerCategory);
         
         // Setup category dropdown
-        List<Categories> categories = Arrays.asList(Categories.values());
+        CategoryDb categoryDb = new CategoryDb(this);
+        List<Category> categories = categoryDb.getAllCategories();
         CategorySpinnerAdapter categoryAdapter = new CategorySpinnerAdapter(this, categories);
         categoryDropdown.setAdapter(categoryAdapter);
         
         // Set a default selection
         if (categories.size() > 0) {
-            categoryDropdown.setText(categories.get(0).getDisplayName(), false);
+            categoryDropdown.setText(categories.get(0).getName(), false);
         }
         
         // Make sure the dropdown is properly configured
         categoryDropdown.setOnItemClickListener((parent, view1, position, id) -> {
-            Categories selectedCategory = (Categories) parent.getItemAtPosition(position);
+            Category selectedCategory = (Category) parent.getItemAtPosition(position);
             if (selectedCategory != null) {
-                categoryDropdown.setText(selectedCategory.getDisplayName(), false);
+                categoryDropdown.setText(selectedCategory.getName(), false);
             }
         });
         
@@ -216,10 +219,11 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
                 try {
                     double amount = Double.parseDouble(amountStr);
                     
-                    // Find the matching category enum
-                    Categories selectedCategory = null;
-                    for (Categories category : Categories.values()) {
-                        if (category.getDisplayName().equals(categoryStr)) {
+                    // Get the category from the database
+                    Category selectedCategory = null;
+                    
+                    for (Category category : categories) {
+                        if (category.getName().equals(categoryStr)) {
                             selectedCategory = category;
                             break;
                         }
@@ -232,7 +236,7 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
                     
                     // Create new expense
                     ExpenseDb expenseDb = new ExpenseDb(this);
-                    long result = expenseDb.addExpense(name, amount, description, selectedCategory.getDisplayName());
+                    long result = expenseDb.addExpense(name, amount, description, selectedCategory.getName());
                     
                     if (result != -1) {
                         Toast.makeText(this, "Expense added successfully", Toast.LENGTH_SHORT).show();

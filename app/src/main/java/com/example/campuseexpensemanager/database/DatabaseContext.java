@@ -9,7 +9,7 @@ import androidx.annotation.Nullable;
 
 public class DatabaseContext extends SQLiteOpenHelper {
     private static final String DB_NAME = "campus_expenses";
-    private static final int DB_VERSION = 7; // Revert database version
+    private static final int DB_VERSION = 8; // Increment version for category table
 
     // User table
     public static final String TABLE_NAME = "users";
@@ -46,6 +46,13 @@ public class DatabaseContext extends SQLiteOpenHelper {
     public static final String CATEGORY_NAME = "category";
     public static final String BUDGET_AMOUNT = "budget_amount";
     public static final String MONTH = "month";
+
+    // Category table
+    public static final String TABLE_NAME_CATEGORY = "categories";
+    public static final String ID_CATEGORY = "id";
+    public static final String NAME_CATEGORY = "name";
+    public static final String IS_CUSTOM = "is_custom";
+    public static final String ICON_NAME = "icon_name";
 
     public DatabaseContext(@Nullable Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -102,6 +109,17 @@ public class DatabaseContext extends SQLiteOpenHelper {
                 + UPDATED_AT + " DATETIME, "
                 + DELETED_AT + " DATETIME ) ";
         db.execSQL(tableBudgetCategory);
+
+        // Create the categories table
+        String tableCategory = "CREATE TABLE " + TABLE_NAME_CATEGORY + " ( "
+                + ID_CATEGORY + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + NAME_CATEGORY + " VARCHAR(100) NOT NULL, "
+                + IS_CUSTOM + " INTEGER NOT NULL DEFAULT 0, "
+                + ICON_NAME + " VARCHAR(100), "
+                + CREATED_AT + " DATETIME, "
+                + UPDATED_AT + " DATETIME, "
+                + DELETED_AT + " DATETIME ) ";
+        db.execSQL(tableCategory);
     }
 
     @Override
@@ -149,6 +167,19 @@ public class DatabaseContext extends SQLiteOpenHelper {
                 db.execSQL("ALTER TABLE " + TABLE_NAME_BUDGET + " ADD COLUMN " + SPENT_AMOUNT + " REAL DEFAULT 0");
             }
         }
+
+        if (oldVersion < 8) {
+            // Create the categories table
+            String tableCategory = "CREATE TABLE " + TABLE_NAME_CATEGORY + " ( "
+                    + ID_CATEGORY + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + NAME_CATEGORY + " VARCHAR(100) NOT NULL, "
+                    + IS_CUSTOM + " INTEGER NOT NULL DEFAULT 0, "
+                    + ICON_NAME + " VARCHAR(100), "
+                    + CREATED_AT + " DATETIME, "
+                    + UPDATED_AT + " DATETIME, "
+                    + DELETED_AT + " DATETIME ) ";
+            db.execSQL(tableCategory);
+        }
     }
     
     @Override
@@ -158,6 +189,7 @@ public class DatabaseContext extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_BUDGET);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_EXPENSE);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_BUDGET_CATEGORY);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_CATEGORY);
         onCreate(db);
     }
 

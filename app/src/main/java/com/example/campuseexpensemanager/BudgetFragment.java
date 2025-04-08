@@ -8,6 +8,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.AutoCompleteTextView;
 import android.widget.ArrayAdapter;
+import android.app.AlertDialog;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -16,9 +17,12 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.campuseexpensemanager.adapter.BudgetCategoryAdapter;
+import com.example.campuseexpensemanager.adapter.CategorySpinnerAdapter;
 import com.example.campuseexpensemanager.database.BudgetDb;
 import com.example.campuseexpensemanager.database.ExpenseDb;
+import com.example.campuseexpensemanager.database.CategoryDb;
 import com.example.campuseexpensemanager.model.Budgets;
+import com.example.campuseexpensemanager.model.Category;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
@@ -31,6 +35,7 @@ import java.util.List;
 public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.OnBudgetCategoryClickListener {
     private BudgetDb budgetDb;
     private ExpenseDb expenseDb;
+    private CategoryDb categoryDb;
     private RecyclerView recyclerView;
     private BudgetCategoryAdapter adapter;
     private TextView totalBudgetTextView;
@@ -38,9 +43,9 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
     private TextView remainingBudgetTextView;
     private LinearProgressIndicator progressIndicator;
     private MaterialButton addCategoryButton;
-    private ExtendedFloatingActionButton fabAddCategory;
     private List<Budgets> budgetCategories;
-    
+    private List<Category> categories;
+
     // Store the callback as a field so we can properly remove it later
     private Runnable dataChangeCallback;
 
@@ -81,6 +86,7 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
         View view = inflater.inflate(R.layout.fragment_budget, container, false);
         budgetDb = new BudgetDb(requireContext());
         expenseDb = new ExpenseDb(requireContext());
+        categoryDb = new CategoryDb(requireContext());
         
         // Create the callback once and store it
         dataChangeCallback = () -> {
@@ -93,6 +99,7 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
         android.util.Log.d("BudgetFragment", "Callback registered for expense data changes");
         
         budgetCategories = new ArrayList<>();
+        categories = categoryDb.getAllCategories();
 
         initializeViews(view);
         setupRecyclerView();
@@ -160,65 +167,63 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
     }
 
     private void showAddEditBudgetDialog(Budgets budgetCategory) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_edit_budget, null);
-        AutoCompleteTextView categorySpinner = dialogView.findViewById(R.id.spinnerCategory);
-        TextInputEditText budgetAmountInput = dialogView.findViewById(R.id.editTextBudgetAmount);
+        builder.setView(dialogView);
 
-        // Setup category spinner
-        ArrayAdapter<String> categoryAdapter = new ArrayAdapter<>(
-            requireContext(),
-            android.R.layout.simple_dropdown_item_1line,
-            PREDEFINED_CATEGORIES
-        );
-        categorySpinner.setAdapter(categoryAdapter);
+        // Initialize views
+        AutoCompleteTextView spinnerCategory = dialogView.findViewById(R.id.spinnerCategory);
+        TextInputEditText etBudgetAmount = dialogView.findViewById(R.id.editTextBudgetAmount);
 
+        // Set up category dropdown
+        List<Category> categories = categoryDb.getAllCategories();
+        CategorySpinnerAdapter categoryAdapter = new CategorySpinnerAdapter(requireContext(), categories);
+        spinnerCategory.setAdapter(categoryAdapter);
+
+        // Set title and populate fields if editing
         if (budgetCategory != null) {
-            categorySpinner.setText(budgetCategory.getName(), false);
-            budgetAmountInput.setText(String.valueOf(budgetCategory.getMoney()));
+            builder.setTitle("Edit Budget Category");
+            spinnerCategory.setText(budgetCategory.getCategory(), false);
+            etBudgetAmount.setText(String.valueOf(budgetCategory.getMoney()));
+        } else {
+            builder.setTitle("Add Budget Category");
         }
 
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle(budgetCategory == null ? "Add Budget Category" : "Edit Budget Category")
-                .setView(dialogView)
-                .setPositiveButton("Save", (dialog, which) -> {
-                    String categoryName = categorySpinner.getText().toString().trim();
-                    String budgetAmountStr = budgetAmountInput.getText().toString().trim();
+        builder.setPositiveButton("Save", (dialog, which) -> {
+            String category = spinnerCategory.getText().toString().trim();
+            String amountStr = etBudgetAmount.getText().toString().trim();
 
-                    if (categoryName.isEmpty() || budgetAmountStr.isEmpty()) {
-                        Toast.makeText(requireContext(), "Please fill all fields", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+            if (category.isEmpty() || amountStr.isEmpty()) {
+                Toast.makeText(requireContext(), "Please fill in all required fields", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-                    double budgetAmount;
-                    try {
-                        budgetAmount = Double.parseDouble(budgetAmountStr);
-                        if (budgetAmount <= 0) {
-                            Toast.makeText(requireContext(), "Budget amount must be greater than 0", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                    } catch (NumberFormatException e) {
-                        Toast.makeText(requireContext(), "Invalid budget amount", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+            try {
+                double amount = Double.parseDouble(amountStr);
+                if (budgetCategory == null) {
+                    // Add new budget category
+                    Budgets newBudget = new Budgets();
+                    newBudget.setName(category);
+                    newBudget.setMoney(amount);
+                    newBudget.setCategory(category);
+                    newBudget.setMonthYear(getCurrentMonthYear());
+                    newBudget.setSpentAmount(0.0);
+                    budgetDb.addBudgetCategory(newBudget);
+                } else {
+                    // Update existing budget category
+                    budgetCategory.setName(category);
+                    budgetCategory.setMoney(amount);
+                    budgetCategory.setCategory(category);
+                    budgetDb.updateBudgetCategory(budgetCategory);
+                }
+                refreshData();
+            } catch (NumberFormatException e) {
+                Toast.makeText(requireContext(), "Please enter a valid amount", Toast.LENGTH_SHORT).show();
+            }
+        });
 
-                    if (budgetCategory == null) {
-                        Budgets newCategory = new Budgets();
-                        newCategory.setName(categoryName);
-                        newCategory.setCategory(categoryName);
-                        newCategory.setMoney(budgetAmount);
-                        newCategory.setMonthYear(budgetDb.getCurrentMonth());
-                        budgetDb.addBudgetCategory(newCategory);
-                    } else {
-                        budgetCategory.setName(categoryName);
-                        budgetCategory.setCategory(categoryName);
-                        budgetCategory.setMoney(budgetAmount);
-                        budgetDb.updateBudgetCategory(budgetCategory);
-                    }
-
-                    loadBudgetCategories();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        builder.setNegativeButton("Cancel", null);
+        builder.create().show();
     }
 
     private void showDeleteConfirmationDialog(Budgets budgetCategory) {
@@ -258,5 +263,10 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
         if (budgetDb != null) {
             budgetDb.close();
         }
+    }
+
+    private String getCurrentMonthYear() {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MM/yyyy", java.util.Locale.getDefault());
+        return sdf.format(new java.util.Date());
     }
 }
