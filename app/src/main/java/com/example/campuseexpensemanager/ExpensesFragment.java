@@ -187,12 +187,8 @@ public class ExpensesFragment extends Fragment {
         etDescription.setText(expense.getDescription());
         
         // Set current category
-        for (int i = 0; i < categories.size(); i++) {
-            if (categories.get(i).getName().equals(expense.getCategory())) {
-                spinnerCategory.setText(categories.get(i).getName(), false);
-                break;
-            }
-        }
+        String currentCategory = expense.getCategory();
+        spinnerCategory.setText(currentCategory, false);
 
         new AlertDialog.Builder(requireContext())
                 .setTitle("Edit Expense")
@@ -201,9 +197,9 @@ public class ExpensesFragment extends Fragment {
                     String name = etName.getText().toString();
                     String amountStr = etAmount.getText().toString();
                     String description = etDescription.getText().toString();
-                    Category selectedCategory = (Category) spinnerCategory.getAdapter().getItem(spinnerCategory.getListSelection());
+                    String selectedCategory = spinnerCategory.getText().toString();
 
-                    if (name.isEmpty() || amountStr.isEmpty() || selectedCategory == null) {
+                    if (name.isEmpty() || amountStr.isEmpty() || selectedCategory.isEmpty()) {
                         Toast.makeText(requireContext(), "Please fill all required fields", Toast.LENGTH_SHORT).show();
                         return;
                     }
@@ -212,9 +208,9 @@ public class ExpensesFragment extends Fragment {
                     expense.setName(name);
                     expense.setMoney(amount);
                     expense.setDescription(description);
-                    expense.setCategory(selectedCategory.getName());
+                    expense.setCategory(selectedCategory);
 
-                    int result = expenseDb.editExpense(expense.getId(), name, amount, description, selectedCategory.getName());
+                    int result = expenseDb.editExpense(expense.getId(), name, amount, description, selectedCategory);
                     if (result > 0) {
                         loadExpenses();
                         Toast.makeText(requireContext(), "Expense updated", Toast.LENGTH_SHORT).show();
