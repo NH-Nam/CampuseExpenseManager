@@ -92,7 +92,7 @@
             android:id="@+id/etExpenseDescription"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Description"
+            android:hint="Description (Optional)"
             android:inputType="textMultiLine"
             android:minLines="3"
             android:gravity="top"

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:elevation="4dp"
+        android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxCornerRadiusTopStart="16dp"
+                app:boxCornerRadiusTopEnd="16dp"
+                app:boxCornerRadiusBottomStart="16dp"
+                app:boxCornerRadiusBottomEnd="16dp"
+                app:boxStrokeColor="@color/purple_500"
+                app:hintTextColor="@color/purple_500">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etExpenseName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Title"
+                    android:inputType="text"
+                    android:textColor="@color/black"
+                    android:textColorHint="@color/black"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxCornerRadiusTopStart="16dp"
+                app:boxCornerRadiusTopEnd="16dp"
+                app:boxCornerRadiusBottomStart="16dp"
+                app:boxCornerRadiusBottomEnd="16dp"
+                app:boxStrokeColor="@color/purple_500"
+                app:hintTextColor="@color/purple_500">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etExpenseAmount"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Amount"
+                    android:inputType="numberDecimal"
+                    android:textColor="@color/black"
+                    android:textColorHint="@color/black"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                app:boxCornerRadiusTopStart="16dp"
+                app:boxCornerRadiusTopEnd="16dp"
+                app:boxCornerRadiusBottomStart="16dp"
+                app:boxCornerRadiusBottomEnd="16dp"
+                app:boxStrokeColor="@color/purple_500"
+                app:hintTextColor="@color/purple_500">
+
+                <AutoCompleteTextView
+                    android:id="@+id/spinnerCategory"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Category"
+                    android:inputType="none"
+                    android:focusable="false"
+                    android:clickable="true"
+                    android:textColor="@color/black"
+                    android:textColorHint="@color/black"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxCornerRadiusTopStart="16dp"
+                app:boxCornerRadiusTopEnd="16dp"
+                app:boxCornerRadiusBottomStart="16dp"
+                app:boxCornerRadiusBottomEnd="16dp"
+                app:boxStrokeColor="@color/purple_500"
+                app:hintTextColor="@color/purple_500">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etExpenseDescription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Description (Optional)"
+                    android:inputType="textMultiLine"
+                    android:minLines="3"
+                    android:gravity="top"
+                    android:textColor="@color/black"
+                    android:textColorHint="@color/black"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSave"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:text="Save Expense" />
+
+</LinearLayout> 

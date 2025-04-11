@@ -1,6 +1,8 @@
 package com.example.campuseexpensemanager;
 
+import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -130,44 +132,12 @@ public class ExpensesFragment extends Fragment {
     }
 
     public void showAddDialog() {
-        View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_expense, null);
-        TextInputEditText etName = dialogView.findViewById(R.id.etExpenseName);
-        TextInputEditText etAmount = dialogView.findViewById(R.id.etExpenseAmount);
-        TextInputEditText etDescription = dialogView.findViewById(R.id.etExpenseDescription);
-        AutoCompleteTextView spinnerCategory = dialogView.findViewById(R.id.spinnerCategory);
-
-        // Load categories for spinner
-        categories = categoryDb.getAllCategories();
-        categoryAdapter = new CategorySpinnerAdapter(requireContext(), categories);
-        spinnerCategory.setAdapter(categoryAdapter);
-
-        new AlertDialog.Builder(requireContext())
-                .setTitle("Add New Expense")
-                .setView(dialogView)
-                .setPositiveButton("Add", (dialog, which) -> {
-                    String name = etName.getText().toString();
-                    String amountStr = etAmount.getText().toString();
-                    String description = etDescription.getText().toString();
-                    String categoryName = spinnerCategory.getText().toString();
-
-                    if (name.isEmpty() || amountStr.isEmpty() || categoryName.isEmpty()) {
-                        Toast.makeText(requireContext(), "Please fill all required fields", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    double amount = Double.parseDouble(amountStr);
-                    long result = expenseDb.addExpense(name, amount, description, categoryName);
-
-                    if (result != -1) {
-                        loadExpenses();
-                        Toast.makeText(requireContext(), "Expense added", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(requireContext(), "Failed to add expense", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        Intent intent = new Intent(requireContext(), AddExpenseActivity.class);
+        startActivityForResult(intent, ADD_EXPENSE_REQUEST_CODE);
     }
+
+    private static final int ADD_EXPENSE_REQUEST_CODE = 1001;
+
 
     private void showEditDialog(Expenses expense) {
         View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_expense, null);

@@ -45,6 +45,7 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
     NavigationView navigationView;
     private String username;
     private ExtendedFloatingActionButton fabAddExpense;
+    private static final int ADD_EXPENSE_REQUEST_CODE = 1001;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -82,11 +83,11 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
             
             // Show appropriate dialog based on current fragment
             if (currentPosition == 0) {
-                // Home fragment - show add expense dialog
-                showAddExpenseDialog();
+                // Home fragment - show add expense activity
+                launchAddExpenseActivity();
             } else if (currentPosition == 1) {
-                // Expenses fragment - show add expense dialog
-                showAddExpenseDialog();
+                // Expenses fragment - show add expense activity
+                launchAddExpenseActivity();
             } else if (currentPosition == 2) {
                 // Budget fragment - show add budget dialog
                 showAddBudgetDialog();
@@ -172,85 +173,24 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
         return true;
     }
 
-    private void showAddExpenseDialog() {
-        // Create a dialog using dialog_expense.xml
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_expense, null);
-        
-        // Initialize views
-        EditText etName = dialogView.findViewById(R.id.etExpenseName);
-        EditText etAmount = dialogView.findViewById(R.id.etExpenseAmount);
-        EditText etDescription = dialogView.findViewById(R.id.etExpenseDescription);
-        MaterialAutoCompleteTextView categoryDropdown = dialogView.findViewById(R.id.spinnerCategory);
-        
-        // Setup category dropdown
-        CategoryDb categoryDb = new CategoryDb(this);
-        List<Category> categories = categoryDb.getAllCategories();
-        CategorySpinnerAdapter categoryAdapter = new CategorySpinnerAdapter(this, categories);
-        categoryDropdown.setAdapter(categoryAdapter);
-        
-        // Set a default selection
-        if (categories.size() > 0) {
-            categoryDropdown.setText(categories.get(0).getName(), false);
-        }
-        
-        // Make sure the dropdown is properly configured
-        categoryDropdown.setOnItemClickListener((parent, view1, position, id) -> {
-            Category selectedCategory = (Category) parent.getItemAtPosition(position);
-            if (selectedCategory != null) {
-                categoryDropdown.setText(selectedCategory.getName(), false);
-            }
-        });
-        
-        // Show dialog
-        new MaterialAlertDialogBuilder(this)
-            .setView(dialogView)
-            .setTitle("Add New Expense")
-            .setPositiveButton("Add", (dialog, which) -> {
-                String name = etName.getText().toString();
-                String amountStr = etAmount.getText().toString();
-                String description = etDescription.getText().toString();
-                String categoryStr = categoryDropdown.getText().toString();
-                
-                if (name.isEmpty() || amountStr.isEmpty() || categoryStr.isEmpty()) {
-                    Toast.makeText(this, "Please fill all required fields", Toast.LENGTH_SHORT).show();
-                    return;
-                }
+    private void launchAddExpenseActivity() {
+        Intent intent = new Intent(this, AddExpenseActivity.class);
+        startActivityForResult(intent, ADD_EXPENSE_REQUEST_CODE);
+    }
 
-                try {
-                    double amount = Double.parseDouble(amountStr);
-                    
-                    // Get the category from the database
-                    Category selectedCategory = null;
-                    
-                    for (Category category : categories) {
-                        if (category.getName().equals(categoryStr)) {
-                            selectedCategory = category;
-                            break;
-                        }
-                    }
-                    
-                    if (selectedCategory == null) {
-                        Toast.makeText(this, "Please select a valid category", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    
-                    // Create new expense
-                    ExpenseDb expenseDb = new ExpenseDb(this);
-                    long result = expenseDb.addExpense(name, amount, description, selectedCategory.getName());
-                    
-                    if (result != -1) {
-                        Toast.makeText(this, "Expense added successfully", Toast.LENGTH_SHORT).show();
-                        // Refresh the expense list
-                        refreshCurrentFragment();
-                    } else {
-                        Toast.makeText(this, "Failed to add expense", Toast.LENGTH_SHORT).show();
-                    }
-                } catch (NumberFormatException e) {
-                    Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
-                }
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == ADD_EXPENSE_REQUEST_CODE && resultCode == RESULT_OK) {
+            // Expense was added successfully, refresh the current fragment
+            refreshCurrentFragment();
+        }
+    }
+
+    private void showAddExpenseDialog() {
+        // This method is kept for backward compatibility
+        launchAddExpenseActivity();
     }
     
     private void showAddBudgetDialog() {
