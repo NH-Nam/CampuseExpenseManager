@@ -47,7 +47,7 @@ public class AddCategoryDialog {
 
                     if (categoryToEdit != null) {
                         categoryToEdit.setName(name);
-                        int result = categoryDb.updateCategory(categoryToEdit);
+                        int result = categoryDb.updateCategoryAndPropagate(categoryToEdit);
                         if (result > 0) {
                             listener.onCategoryAdded(categoryToEdit);
                         } else {

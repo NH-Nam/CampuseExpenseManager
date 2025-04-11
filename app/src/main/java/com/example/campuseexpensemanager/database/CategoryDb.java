@@ -67,6 +67,80 @@ public class CategoryDb {
         return database.update("categories", values, "id = ?", new String[]{String.valueOf(category.getId())});
     }
 
+    public int updateCategoryAndPropagate(Category category) {
+        // Start a transaction
+        database.beginTransaction();
+        try {
+            // Get the old category name before updating
+            Cursor cursor = database.query("categories", 
+                new String[]{"name"}, 
+                "id = ?", 
+                new String[]{String.valueOf(category.getId())}, 
+                null, null, null);
+            
+            String oldCategoryName = null;
+            if (cursor.moveToFirst()) {
+                oldCategoryName = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+            }
+            cursor.close();
+
+            if (oldCategoryName == null) {
+                return 0;
+            }
+
+            // Update the category
+            ContentValues values = new ContentValues();
+            values.put("name", category.getName());
+            values.put("is_custom", category.isCustom() ? 1 : 0);
+            values.put("updated_at", getCurrentDateTime());
+            
+            int result = database.update("categories", 
+                values, 
+                "id = ?", 
+                new String[]{String.valueOf(category.getId())});
+
+            if (result > 0) {
+                // Update budgets
+                ContentValues budgetValues = new ContentValues();
+                budgetValues.put(DatabaseContext.CATEGORY_BUDGET, category.getName());
+                budgetValues.put(DatabaseContext.UPDATED_AT, getCurrentDateTime());
+                database.update(DatabaseContext.TABLE_NAME_BUDGET,
+                    budgetValues,
+                    DatabaseContext.CATEGORY_BUDGET + " = ?",
+                    new String[]{oldCategoryName});
+
+                // Update expenses
+                ContentValues expenseValues = new ContentValues();
+                expenseValues.put(DatabaseContext.CATEGORY_EXPENSE, category.getName());
+                expenseValues.put(DatabaseContext.UPDATED_AT, getCurrentDateTime());
+                database.update(DatabaseContext.TABLE_NAME_EXPENSE,
+                    expenseValues,
+                    DatabaseContext.CATEGORY_EXPENSE + " = ?",
+                    new String[]{oldCategoryName});
+
+                // Update budget categories
+                ContentValues budgetCategoryValues = new ContentValues();
+                budgetCategoryValues.put(DatabaseContext.CATEGORY_NAME, category.getName());
+                budgetCategoryValues.put(DatabaseContext.UPDATED_AT, getCurrentDateTime());
+                database.update(DatabaseContext.TABLE_NAME_BUDGET_CATEGORY,
+                    budgetCategoryValues,
+                    DatabaseContext.CATEGORY_NAME + " = ?",
+                    new String[]{oldCategoryName});
+            }
+
+            // Commit the transaction
+            database.setTransactionSuccessful();
+            return result;
+        } catch (Exception e) {
+            android.util.Log.e("CategoryDb", "Error updating category: " + e.getMessage());
+            e.printStackTrace();
+            return 0;
+        } finally {
+            // End the transaction
+            database.endTransaction();
+        }
+    }
+
     public int deleteCategory(int id) {
         return database.delete("categories", "id = ?", new String[]{String.valueOf(id)});
     }
