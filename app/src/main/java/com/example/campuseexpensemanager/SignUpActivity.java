@@ -7,6 +7,7 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -21,6 +22,7 @@ public class SignUpActivity extends AppCompatActivity {
     EditText edtUser, edtPassword, edtEmail, edtPhone;
     Button btnRegister, btnCancel;
     UserDb userDb;
+    TextView tvLogin;
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -33,7 +35,16 @@ public class SignUpActivity extends AppCompatActivity {
         btnCancel = findViewById(R.id.btnCancel);
         edtEmail = findViewById(R.id.edtEmail);
         edtPhone = findViewById(R.id.edtPhone);
+        tvLogin = findViewById(R.id.tvLogin);
         signupAccount(); // save sqlite
+
+        tvLogin.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intentLogin = new Intent(SignUpActivity.this, SignInActivity.class);
+                startActivity(intentLogin);
+            }
+        });
     }
 
     private void signupAccount(){
