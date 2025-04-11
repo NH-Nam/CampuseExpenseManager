@@ -56,23 +56,35 @@ public class ExpenseDb {
     }
 
     public long addExpense(String name, double amount, String description, String category) {
-        String currentDate = getCurrentDateTime();
+        // Check if adding this expense would exceed the budget
+        List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
+        for (Budgets budget : budgetCategories) {
+            if (budget.getCategory().equals(category)) {
+                double currentSpent = budget.getSpentAmount();
+                double budgetLimit = budget.getMoney();
+                if (currentSpent + amount > budgetLimit) {
+                    // Return -2 to indicate budget limit exceeded
+                    return -2;
+                }
+                break;
+            }
+        }
+
         ContentValues values = new ContentValues();
         values.put(DatabaseContext.NAME_EXPENSE, name);
         values.put(DatabaseContext.MONEY_EXPENSE, amount);
         values.put(DatabaseContext.DESCRIPTION_EXPENSE, description);
         values.put(DatabaseContext.CATEGORY_EXPENSE, category);
-        values.put(DatabaseContext.CREATED_AT, currentDate);
+        values.put(DatabaseContext.CREATED_AT, getCurrentDateTime());
 
         long result = dbWrite.insert(DatabaseContext.TABLE_NAME_EXPENSE, null, values);
-        
-        // Update budget category spent amount
-        if (result != -1 && category != null && !category.isEmpty()) {
+
+        if (result != -1) {
+            // Update budget category spent amount
             updateBudgetCategorySpentAmount(category, amount);
-            // Notify all listeners about the data change
             notifyDataChanged();
         }
-        
+
         return result;
     }
 

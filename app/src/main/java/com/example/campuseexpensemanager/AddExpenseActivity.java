@@ -86,49 +86,34 @@ public class AddExpenseActivity extends AppCompatActivity {
 
         // Setup save button click listener
         btnSave.setOnClickListener(v -> {
-            String name = etName.getText().toString();
-            String amountStr = etAmount.getText().toString();
-            String description = etDescription.getText().toString();
+            String name = etName.getText().toString().trim();
+            String amountStr = etAmount.getText().toString().trim();
+            String description = etDescription.getText().toString().trim();
             String categoryName = spinnerCategory.getText().toString();
 
             if (name.isEmpty() || amountStr.isEmpty() || categoryName.isEmpty()) {
-                Toast.makeText(this, "Please fill all required fields", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Please fill in all required fields", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            try {
-                double amount = Double.parseDouble(amountStr);
-                long result;
+            double amount = Double.parseDouble(amountStr);
+            long result;
 
-                if (isEditMode) {
-                    result = expenseDb.editExpense(expenseId, name, amount, description, categoryName);
-                    if (result > 0) {
-                        Toast.makeText(this, "Expense updated successfully", Toast.LENGTH_SHORT).show();
-                        setResult(RESULT_OK);
-                        finish();
-                    } else {
-                        Toast.makeText(this, "Failed to update expense", Toast.LENGTH_SHORT).show();
-                    }
-                } else {
-                    // Check if category has a budget before adding expense
-                    if (!budgetDb.hasBudgetForCategory(categoryName)) {
-                        android.util.Log.d("AddExpenseActivity", "No budget found for category: " + categoryName);
-                        Toast.makeText(this, "Cannot add expense: No budget set for this category", Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    android.util.Log.d("AddExpenseActivity", "Budget found for category: " + categoryName);
-
-                    result = expenseDb.addExpense(name, amount, description, categoryName);
-                    if (result != -1) {
-                        Toast.makeText(this, "Expense added successfully", Toast.LENGTH_SHORT).show();
-                        setResult(RESULT_OK);
-                        finish();
-                    } else {
-                        Toast.makeText(this, "Failed to add expense", Toast.LENGTH_SHORT).show();
-                    }
+            if (expenseId != -1) {
+                result = expenseDb.editExpense(expenseId, name, amount, description, categoryName);
+            } else {
+                result = expenseDb.addExpense(name, amount, description, categoryName);
+                if (result == -2) {
+                    Toast.makeText(this, "Cannot add expense: Would exceed budget limit", Toast.LENGTH_LONG).show();
+                    return;
                 }
-            } catch (NumberFormatException e) {
-                Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
+            }
+
+            if (result != -1) {
+                Toast.makeText(this, "Expense saved successfully", Toast.LENGTH_SHORT).show();
+                finish();
+            } else {
+                Toast.makeText(this, "Failed to save expense", Toast.LENGTH_SHORT).show();
             }
         });
     }
