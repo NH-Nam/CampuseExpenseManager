@@ -155,38 +155,6 @@ public class BudgetDb {
         return category;
     }
 
-    public List<Budgets> getAllBudgetCategories() {
-        List<Budgets> budgetCategories = new ArrayList<>();
-        Cursor cursor = dbRead.query(DatabaseContext.TABLE_NAME_BUDGET, null, null, null, null, null, null);
-
-        if (cursor.moveToFirst()) {
-            do {
-                Budgets budgetCategory = new Budgets();
-                budgetCategory.setId(cursor.getInt(cursor.getColumnIndexOrThrow(DatabaseContext.ID_BUDGET)));
-                budgetCategory.setName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.NAME_BUDGET)));
-                budgetCategory.setMoney(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseContext.MONEY_BUDGET)));
-                budgetCategory.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.DESCRIPTION_BUDGET)));
-                budgetCategory.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CATEGORY_BUDGET)));
-                budgetCategory.setSpentAmount(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseContext.SPENT_AMOUNT)));
-                budgetCategories.add(budgetCategory);
-            } while (cursor.moveToNext());
-        }
-        cursor.close();
-        return budgetCategories;
-    }
-
-    public double calculateSpentAmount(String category, String monthYear) {
-        String query = "SELECT SUM(" + DatabaseContext.MONEY_EXPENSE + ") FROM " + DatabaseContext.TABLE_NAME_EXPENSE +
-                " WHERE " + DatabaseContext.CATEGORY_EXPENSE + " = ? AND " + DatabaseContext.CREATED_AT + " LIKE ?";
-        Cursor cursor = dbRead.rawQuery(query, new String[]{category, monthYear + "%"});
-
-        double spentAmount = 0;
-        if (cursor.moveToFirst()) {
-            spentAmount = cursor.getDouble(0);
-        }
-        cursor.close();
-        return spentAmount;
-    }
 
     public List<Budgets> getBudgetCategoriesByMonth(String monthYear) {
         List<Budgets> budgetCategories = new ArrayList<>();

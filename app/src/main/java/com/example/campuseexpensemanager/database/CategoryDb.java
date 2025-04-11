@@ -88,16 +88,6 @@ public class CategoryDb {
         return categories;
     }
 
-    public int updateCategory(Category category) {
-        ContentValues values = new ContentValues();
-        values.put("name", category.getName());
-        values.put("is_custom", category.isCustom() ? 1 : 0);
-        int result = database.update("categories", values, "id = ?", new String[]{String.valueOf(category.getId())});
-        if (result > 0) {
-            notifyDataChanged();
-        }
-        return result;
-    }
 
     public int updateCategoryAndPropagate(Category category) {
         // Start a transaction

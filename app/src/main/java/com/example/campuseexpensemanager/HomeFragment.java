@@ -500,11 +500,7 @@ public class HomeFragment extends Fragment {
         updateUI();
         setupBudgetChart();
     }
-    
-    /**
-     * Refreshes all data in the HomeFragment
-     * This method is called from MenuActivity when a new expense is added
-     */
+
     public void refreshData() {
         if (getActivity() != null && isAdded() && !isRefreshing) {
             android.util.Log.d("HomeFragment", "Refreshing data");

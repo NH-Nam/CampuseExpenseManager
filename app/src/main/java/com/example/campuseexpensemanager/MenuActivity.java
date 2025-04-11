@@ -187,11 +187,6 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
             refreshCurrentFragment();
         }
     }
-
-    private void showAddExpenseDialog() {
-        // This method is kept for backward compatibility
-        launchAddExpenseActivity();
-    }
     
     private void showAddBudgetDialog() {
         // Create a dialog using dialog_add_edit_budget.xml
