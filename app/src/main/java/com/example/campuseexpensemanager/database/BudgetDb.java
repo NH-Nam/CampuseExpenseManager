@@ -300,4 +300,16 @@ public class BudgetDb {
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM");
         return dtf.format(zoneDt);
     }
+
+    public boolean hasBudgetForCategory(String categoryName) {
+        String[] columns = {DatabaseContext.ID_BUDGET};
+        String selection = DatabaseContext.CATEGORY_BUDGET + " = ? AND " + DatabaseContext.DELETED_AT + " IS NULL";
+        String[] selectionArgs = {categoryName};
+        
+        Cursor cursor = dbRead.query(DatabaseContext.TABLE_NAME_BUDGET, columns, selection, selectionArgs, null, null, null);
+        boolean hasBudget = cursor.getCount() > 0;
+        cursor.close();
+        
+        return hasBudget;
+    }
 }

@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.example.campuseexpensemanager.adapter.CategorySpinnerAdapter;
+import com.example.campuseexpensemanager.database.BudgetDb;
 import com.example.campuseexpensemanager.database.CategoryDb;
 import com.example.campuseexpensemanager.database.ExpenseDb;
 import com.example.campuseexpensemanager.model.Category;
@@ -26,6 +27,7 @@ public class AddExpenseActivity extends AppCompatActivity {
     private MaterialButton btnSave;
     private ExpenseDb expenseDb;
     private CategoryDb categoryDb;
+    private BudgetDb budgetDb;
     private List<Category> categories;
     private CategorySpinnerAdapter categoryAdapter;
     private boolean isEditMode = false;
@@ -39,6 +41,7 @@ public class AddExpenseActivity extends AppCompatActivity {
         // Initialize databases
         expenseDb = new ExpenseDb(this);
         categoryDb = new CategoryDb(this);
+        budgetDb = new BudgetDb(this);
 
         // Setup toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -107,6 +110,14 @@ public class AddExpenseActivity extends AppCompatActivity {
                         Toast.makeText(this, "Failed to update expense", Toast.LENGTH_SHORT).show();
                     }
                 } else {
+                    // Check if category has a budget before adding expense
+                    if (!budgetDb.hasBudgetForCategory(categoryName)) {
+                        android.util.Log.d("AddExpenseActivity", "No budget found for category: " + categoryName);
+                        Toast.makeText(this, "Cannot add expense: No budget set for this category", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    android.util.Log.d("AddExpenseActivity", "Budget found for category: " + categoryName);
+
                     result = expenseDb.addExpense(name, amount, description, categoryName);
                     if (result != -1) {
                         Toast.makeText(this, "Expense added successfully", Toast.LENGTH_SHORT).show();
@@ -139,6 +150,9 @@ public class AddExpenseActivity extends AppCompatActivity {
         }
         if (categoryDb != null) {
             categoryDb.close();
+        }
+        if (budgetDb != null) {
+            budgetDb.close();
         }
     }
 } 
