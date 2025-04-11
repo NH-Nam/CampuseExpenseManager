@@ -31,6 +31,7 @@ import com.example.campuseexpensemanager.adapter.ExpenseAdapter;
 import com.example.campuseexpensemanager.adapter.NotificationAdapter;
 import com.example.campuseexpensemanager.database.BudgetDb;
 import com.example.campuseexpensemanager.database.ExpenseDb;
+import com.example.campuseexpensemanager.database.CategoryDb;
 import com.example.campuseexpensemanager.model.Budgets;
 import com.example.campuseexpensemanager.model.Expenses;
 import com.example.campuseexpensemanager.model.Notification;
@@ -67,6 +68,7 @@ public class HomeFragment extends Fragment {
     CategoryBreakdownAdapter categoryBreakdownAdapter;
     ExpenseDb expenseDb;
     BudgetDb budgetDb;
+    private CategoryDb categoryDb;
 
     // Data
     List<Expenses> expenses = new ArrayList<>();
@@ -109,6 +111,8 @@ public class HomeFragment extends Fragment {
 
         // Initialize database
         expenseDb = new ExpenseDb(requireContext());
+        budgetDb = new BudgetDb(requireContext());
+        categoryDb = new CategoryDb(requireContext());
         
         // Create callback once and store it
         dataChangeCallback = () -> {
@@ -117,10 +121,9 @@ public class HomeFragment extends Fragment {
             }
         };
         
-        // Register the callback
+        // Register the callbacks
         expenseDb.addOnDataChangedCallback(dataChangeCallback);
-        
-        budgetDb = new BudgetDb(requireContext());
+        categoryDb.addOnDataChangedCallback(dataChangeCallback);
 
         // Get username from arguments
         String username = "User";
@@ -296,15 +299,31 @@ public class HomeFragment extends Fragment {
     private void setupBudgetChart() {
         // Setup budget pie chart
         List<PieEntry> budgetEntries = new ArrayList<>();
+        List<PieEntry> spentEntries = new ArrayList<>();
         
         // Get budget categories for current month
         List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
         
-        // Add budget categories with their spent amounts
+        // Calculate spent amounts per category from expenses
+        Map<String, Double> categorySpentAmounts = new HashMap<>();
+        for (Expenses expense : expenses) {
+            String category = expense.getCategory();
+            double amount = expense.getMoney();
+            categorySpentAmounts.put(category, 
+                categorySpentAmounts.getOrDefault(category, 0.0) + amount);
+        }
+        
+        // Add budget categories with their amounts
         for (Budgets budget : budgetCategories) {
             if (budget.getMoney() > 0) {
                 // Add the budget amount
-                budgetEntries.add(new PieEntry((float) budget.getMoney(), budget.getName()));
+                budgetEntries.add(new PieEntry((float) budget.getMoney(), budget.getCategory()));
+                
+                // Add the spent amount if any expenses exist for this category
+                double spentAmount = categorySpentAmounts.getOrDefault(budget.getCategory(), 0.0);
+                if (spentAmount > 0) {
+                    spentEntries.add(new PieEntry((float) spentAmount, budget.getCategory()));
+                }
             }
         }
 
@@ -322,6 +341,12 @@ public class HomeFragment extends Fragment {
         budgetLegend.setHorizontalAlignment(Legend.LegendHorizontalAlignment.CENTER);
         
         PieData budgetData = new PieData(budgetDataSet);
+        budgetData.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.format("$%.0f", value);
+            }
+        });
         
         pieChart.setData(budgetData);
         pieChart.setDescription(null);
@@ -332,17 +357,6 @@ public class HomeFragment extends Fragment {
         pieChart.animateY(1000);
         pieChart.invalidate();
         
-        // Setup spent pie chart
-        List<PieEntry> spentEntries = new ArrayList<>();
-        
-        // Add spent amounts for each category
-        for (Budgets budget : budgetCategories) {
-            if (budget.getSpentAmount() > 0) {
-                // Add the spent amount
-                spentEntries.add(new PieEntry((float) budget.getSpentAmount(), budget.getName()));
-            }
-        }
-
         // Create a dataset for the spent amounts
         PieDataSet spentDataSet = new PieDataSet(spentEntries, "Spent Distribution");
         spentDataSet.setColors(ColorTemplate.MATERIAL_COLORS);
@@ -357,6 +371,12 @@ public class HomeFragment extends Fragment {
         spentLegend.setHorizontalAlignment(Legend.LegendHorizontalAlignment.CENTER);
         
         PieData spentData = new PieData(spentDataSet);
+        spentData.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.format("$%.0f", value);
+            }
+        });
         
         pieChartSpent.setData(spentData);
         pieChartSpent.setDescription(null);
@@ -366,9 +386,6 @@ public class HomeFragment extends Fragment {
         pieChartSpent.setEntryLabelTextSize(12f);
         pieChartSpent.animateY(1000);
         pieChartSpent.invalidate();
-        
-        // Check for budget warnings
-        checkBudgetWarning();
     }
 
     private String getLastWarningKey(String category) {
@@ -467,9 +484,12 @@ public class HomeFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        // Remove callback to prevent memory leaks
+        // Remove callbacks to prevent memory leaks
         if (expenseDb != null && dataChangeCallback != null) {
             expenseDb.removeOnDataChangedCallback(dataChangeCallback);
+        }
+        if (categoryDb != null && dataChangeCallback != null) {
+            categoryDb.removeOnDataChangedCallback(dataChangeCallback);
         }
     }
 

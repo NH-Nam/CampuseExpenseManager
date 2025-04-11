@@ -26,6 +26,7 @@ public class SettingFragment extends Fragment {
     private List<Category> categories;
     private CategoryAdapter adapter;
     private RecyclerView recyclerView;
+    private Runnable dataChangeCallback;
 
     @Nullable
     @Override
@@ -40,6 +41,12 @@ public class SettingFragment extends Fragment {
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         
         com.google.android.material.button.MaterialButton btnAddCategory = view.findViewById(R.id.btnAddCategory);
+
+        // Create callback for data changes
+        dataChangeCallback = this::loadCategories;
+        
+        // Register the callback
+        categoryDb.addOnDataChangedCallback(dataChangeCallback);
 
         // Load categories
         loadCategories();
@@ -115,8 +122,9 @@ public class SettingFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        if (categoryDb != null) {
-            categoryDb.close();
+        // Remove callback to prevent memory leaks
+        if (categoryDb != null && dataChangeCallback != null) {
+            categoryDb.removeOnDataChangedCallback(dataChangeCallback);
         }
     }
 }

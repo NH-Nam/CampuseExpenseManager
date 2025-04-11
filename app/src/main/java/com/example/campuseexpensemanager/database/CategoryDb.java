@@ -15,10 +15,35 @@ import java.util.List;
 public class CategoryDb {
     private SQLiteDatabase database;
     private DatabaseContext dbHelper;
+    private final List<Runnable> dataChangeCallbacks = new ArrayList<>();
 
     public CategoryDb(Context context) {
         dbHelper = new DatabaseContext(context);
         database = dbHelper.getWritableDatabase();
+    }
+
+    public void addOnDataChangedCallback(Runnable callback) {
+        if (!dataChangeCallbacks.contains(callback)) {
+            dataChangeCallbacks.add(callback);
+        }
+    }
+
+    public void removeOnDataChangedCallback(Runnable callback) {
+        dataChangeCallbacks.remove(callback);
+    }
+
+    private void notifyDataChanged() {
+        // Make sure we're on the main thread when notifying
+        android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        for (Runnable callback : dataChangeCallbacks) {
+            if (callback != null) {
+                try {
+                    mainHandler.post(callback);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     public long addCategory(Category category) {
@@ -30,6 +55,9 @@ public class CategoryDb {
             values.put(DatabaseContext.CREATED_AT, getCurrentDateTime());
             long result = database.insert(DatabaseContext.TABLE_NAME_CATEGORY, null, values);
             android.util.Log.d("CategoryDb", "Add category result: " + result);
+            if (result != -1) {
+                notifyDataChanged();
+            }
             return result;
         } catch (Exception e) {
             android.util.Log.e("CategoryDb", "Error adding category: " + e.getMessage());
@@ -64,7 +92,11 @@ public class CategoryDb {
         ContentValues values = new ContentValues();
         values.put("name", category.getName());
         values.put("is_custom", category.isCustom() ? 1 : 0);
-        return database.update("categories", values, "id = ?", new String[]{String.valueOf(category.getId())});
+        int result = database.update("categories", values, "id = ?", new String[]{String.valueOf(category.getId())});
+        if (result > 0) {
+            notifyDataChanged();
+        }
+        return result;
     }
 
     public int updateCategoryAndPropagate(Category category) {
@@ -126,6 +158,9 @@ public class CategoryDb {
                     budgetCategoryValues,
                     DatabaseContext.CATEGORY_NAME + " = ?",
                     new String[]{oldCategoryName});
+
+                // Notify listeners that data has changed
+                notifyDataChanged();
             }
 
             // Commit the transaction
@@ -142,7 +177,11 @@ public class CategoryDb {
     }
 
     public int deleteCategory(int id) {
-        return database.delete("categories", "id = ?", new String[]{String.valueOf(id)});
+        int result = database.delete("categories", "id = ?", new String[]{String.valueOf(id)});
+        if (result > 0) {
+            notifyDataChanged();
+        }
+        return result;
     }
 
     public void close() {
