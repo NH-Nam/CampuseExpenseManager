@@ -1,6 +1,5 @@
 package com.example.campuseexpensemanager;
 
-import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -14,9 +13,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.campuseexpensemanager.database.UserDb;
-
-import java.io.FileOutputStream;
-import java.nio.charset.StandardCharsets;
 
 public class SignUpActivity extends AppCompatActivity {
     EditText edtUser, edtPassword, edtEmail, edtPhone;
@@ -77,38 +73,6 @@ public class SignUpActivity extends AppCompatActivity {
                     // go to login page
                     Intent intent = new Intent(SignUpActivity.this, SignInActivity.class);
                     startActivity(intent);
-                }
-            }
-        });
-    }
-    private void registerAccount(){
-        btnRegister.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String user = edtUser.getText().toString().trim();
-                String password = edtPassword.getText().toString().trim();
-                if (TextUtils.isEmpty(user) || TextUtils.isEmpty(password)){
-                    Toast.makeText(SignUpActivity.this, "Can not empty", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                // tien hanh luu du lieu nguoi dung vao local storage
-                // mac dinh se luu duoi dang 1 file .txt
-                FileOutputStream fileOpS = null;
-                try {
-                    user += "|";
-                    fileOpS = openFileOutput("account.txt", Context.MODE_APPEND);
-                    fileOpS.write(user.getBytes(StandardCharsets.UTF_8));
-                    fileOpS.write(password.getBytes(StandardCharsets.UTF_8));
-                    fileOpS.write('\n');
-                    fileOpS.close(); // dong file
-                    edtUser.setText("");
-                    edtPassword.setText("");
-                    // quay ve trang dang nhap
-                    Toast.makeText(SignUpActivity.this, "Register Success", Toast.LENGTH_SHORT).show();
-                    Intent intent = new Intent(SignUpActivity.this, SignInActivity.class);
-                    startActivity(intent);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
                 }
             }
         });

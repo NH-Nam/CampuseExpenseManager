@@ -15,8 +15,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.campuseexpensemanager.database.UserDb;
 import com.example.campuseexpensemanager.model.Users;
 
-import java.io.FileInputStream;
-
 public class SignInActivity extends AppCompatActivity {
     EditText edtUsername, edtPassword;
     Button btnLogin;
@@ -83,64 +81,6 @@ public class SignInActivity extends AppCompatActivity {
                 } else {
                     // login fail
                     Toast.makeText(SignInActivity.this, "Account Invalid", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
-    }
-    private void checkLoginWithDataFile(){
-        btnLogin.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String username = edtUsername.getText().toString().trim();
-                String password = edtPassword.getText().toString().trim();
-                if (TextUtils.isEmpty(username)){
-                    edtUsername.setError("Username can not empty");
-                    return;
-                }
-                if (TextUtils.isEmpty(password)){
-                    edtPassword.setError("Password can not empty");
-                    return;
-                }
-                try {
-                    // xu ly doc noi dung tu file local storage de kiem tra dang nhap
-                    FileInputStream fileInSt = openFileInput("account.txt");
-                    int read = -1;
-                    StringBuilder builder = new StringBuilder();
-                    while ((read = fileInSt.read()) != -1){
-                        builder.append((char) read);
-                        // tat ca du lieu gan vao bien builder
-                    }
-                    fileInSt.close();
-                    // validation account
-                    String[] infoAccount = null;
-                    // mang thong tin cua tat ca cac tai khoan
-                    infoAccount = builder.toString().trim().split("\n");
-                    boolean checkAccount = false;
-                    // duyet mang de kiem tra tai khoan
-                    int sizeArrayAccount = infoAccount.length;
-                    for (int i = 0; i < sizeArrayAccount; i++){
-                        String user = infoAccount[i].substring(0, infoAccount[i].indexOf("|"));
-                        String pass = infoAccount[i].substring(infoAccount[i].indexOf("|")+1);
-                        if (username.equals(user) && password.equals(pass)){
-                            checkAccount = true;
-                            break;
-                        }
-                    }
-                    if (checkAccount){
-                        // login success
-                        Intent intent = new Intent(SignInActivity.this, MenuActivity.class);
-                        Bundle bundle = new Bundle();
-                        bundle.putString("USER_ACCOUNT", username);
-                        intent.putExtras(bundle);
-                        startActivity(intent);
-                        finish();
-                    } else {
-                        // login fail
-                        Toast.makeText(SignInActivity.this, "Account Invalid", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
                 }
             }
         });
