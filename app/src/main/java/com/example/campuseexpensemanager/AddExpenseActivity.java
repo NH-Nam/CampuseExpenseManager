@@ -103,7 +103,10 @@ public class AddExpenseActivity extends AppCompatActivity {
                 result = expenseDb.editExpense(expenseId, name, amount, description, categoryName);
             } else {
                 result = expenseDb.addExpense(name, amount, description, categoryName);
-                if (result == -2) {
+                if (result == -3) {
+                    Toast.makeText(this, "Cannot add expense: No budget set for this category", Toast.LENGTH_LONG).show();
+                    return;
+                } else if (result == -2) {
                     Toast.makeText(this, "Cannot add expense: Would exceed budget limit", Toast.LENGTH_LONG).show();
                     return;
                 }

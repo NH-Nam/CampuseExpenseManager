@@ -56,6 +56,12 @@ public class ExpenseDb {
     }
 
     public long addExpense(String name, double amount, String description, String category) {
+        // First check if a budget exists for this category
+        if (!budgetDb.hasBudgetForCategory(category)) {
+            // Return -3 to indicate no budget exists for this category
+            return -3;
+        }
+
         // Check if adding this expense would exceed the budget
         List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
         for (Budgets budget : budgetCategories) {
