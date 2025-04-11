@@ -107,7 +107,14 @@ public class SettingFragment extends Fragment {
                 .setMessage("Are you sure you want to delete this category?")
                 .setPositiveButton("Delete", (dialog, which) -> {
                     int result = categoryDb.deleteCategory(category.getId());
-                    if (result > 0) {
+                    if (result == -2) {
+                        // Category has existing budgets
+                        new AlertDialog.Builder(requireContext())
+                                .setTitle("Cannot Delete Category")
+                                .setMessage("This category cannot be deleted because it has existing budgets. Please delete all budgets in this category first.")
+                                .setPositiveButton("OK", null)
+                                .show();
+                    } else if (result > 0) {
                         categories.remove(category);
                         adapter.updateCategories(categories);
                         Toast.makeText(requireContext(), "Category deleted", Toast.LENGTH_SHORT).show();

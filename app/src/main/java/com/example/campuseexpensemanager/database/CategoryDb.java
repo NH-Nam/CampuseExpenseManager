@@ -176,7 +176,46 @@ public class CategoryDb {
         }
     }
 
+    public boolean hasBudgets(int categoryId) {
+        // First get the category name
+        String categoryName = null;
+        Cursor cursor = database.query("categories", 
+            new String[]{"name"}, 
+            "id = ?", 
+            new String[]{String.valueOf(categoryId)}, 
+            null, null, null);
+            
+        if (cursor.moveToFirst()) {
+            categoryName = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+        }
+        cursor.close();
+
+        if (categoryName == null) {
+            return false;
+        }
+
+        // Check if there are any budgets with this category
+        cursor = database.query(DatabaseContext.TABLE_NAME_BUDGET,
+            new String[]{"COUNT(*)"},
+            DatabaseContext.CATEGORY_BUDGET + " = ? AND " + DatabaseContext.DELETED_AT + " IS NULL",
+            new String[]{categoryName},
+            null, null, null);
+
+        boolean hasBudgets = false;
+        if (cursor.moveToFirst()) {
+            hasBudgets = cursor.getInt(0) > 0;
+        }
+        cursor.close();
+
+        return hasBudgets;
+    }
+
     public int deleteCategory(int id) {
+        // Check if category has budgets before deleting
+        if (hasBudgets(id)) {
+            return -2; // Special return code to indicate category has budgets
+        }
+
         int result = database.delete("categories", "id = ?", new String[]{String.valueOf(id)});
         if (result > 0) {
             notifyDataChanged();
