@@ -42,43 +42,29 @@ public class BudgetDb {
         }
     }
 
-    public void addBudgetCategory(Budgets budgetCategory) {
+    public long addBudgetCategory(Budgets budgetCategory) {
         ContentValues values = new ContentValues();
-        values.put(DatabaseContext.NAME_BUDGET, budgetCategory.getName());
-        values.put(DatabaseContext.MONEY_BUDGET, budgetCategory.getMoney());
-        values.put(DatabaseContext.DESCRIPTION_BUDGET, budgetCategory.getDescription());
         values.put(DatabaseContext.CATEGORY_BUDGET, budgetCategory.getCategory());
+        values.put(DatabaseContext.MONEY_BUDGET, budgetCategory.getMoney());
+        values.put(DatabaseContext.MONTH, budgetCategory.getMonth());
         values.put(DatabaseContext.SPENT_AMOUNT, budgetCategory.getSpentAmount());
-        values.put(DatabaseContext.CREATED_AT, getCurrentDateTime());
-
-        long result = dbWrite.insert(DatabaseContext.TABLE_NAME_BUDGET, null, values);
-        if (result == -1) {
-            android.util.Log.e("BudgetDb", "Failed to add budget category");
-        } else {
-            android.util.Log.d("BudgetDb", "Budget category added successfully with ID: " + result);
-            notifyDataChanged();
-        }
+        values.put(DatabaseContext.CREATED_AT, budgetCategory.getCreatedAt());
+        values.put(DatabaseContext.UPDATED_AT, budgetCategory.getUpdatedAt());
+        values.put(DatabaseContext.DELETED_AT, budgetCategory.getDeletedAt());
+        return dbWrite.insert(DatabaseContext.TABLE_NAME_BUDGET, null, values);
     }
 
-    public void updateBudgetCategory(Budgets budgetCategory) {
+    public int updateBudgetCategory(Budgets budgetCategory) {
         ContentValues values = new ContentValues();
-        values.put(DatabaseContext.NAME_BUDGET, budgetCategory.getName());
-        values.put(DatabaseContext.MONEY_BUDGET, budgetCategory.getMoney());
-        values.put(DatabaseContext.DESCRIPTION_BUDGET, budgetCategory.getDescription());
         values.put(DatabaseContext.CATEGORY_BUDGET, budgetCategory.getCategory());
+        values.put(DatabaseContext.MONEY_BUDGET, budgetCategory.getMoney());
+        values.put(DatabaseContext.MONTH, budgetCategory.getMonth());
         values.put(DatabaseContext.SPENT_AMOUNT, budgetCategory.getSpentAmount());
-        values.put(DatabaseContext.UPDATED_AT, getCurrentDateTime());
-
-        int result = dbWrite.update(DatabaseContext.TABLE_NAME_BUDGET, values, 
-            DatabaseContext.ID_BUDGET + " = ?", 
-            new String[]{String.valueOf(budgetCategory.getId())});
-        
-        if (result == 0) {
-            android.util.Log.e("BudgetDb", "Failed to update budget category");
-        } else {
-            android.util.Log.d("BudgetDb", "Budget category updated successfully");
-            notifyDataChanged();
-        }
+        values.put(DatabaseContext.UPDATED_AT, budgetCategory.getUpdatedAt());
+        values.put(DatabaseContext.DELETED_AT, budgetCategory.getDeletedAt());
+        return dbWrite.update(DatabaseContext.TABLE_NAME_BUDGET, values,
+                DatabaseContext.ID_BUDGET + " = ?",
+                new String[]{String.valueOf(budgetCategory.getId())});
     }
 
     public int updateSpentAmount(long id, double spentAmount) {
@@ -167,14 +153,15 @@ public class BudgetDb {
                 DatabaseContext.CREATED_AT
         };
 
-        String selection = DatabaseContext.DELETED_AT + " IS NULL";
+        String selection = DatabaseContext.DELETED_AT + " IS NULL AND " + DatabaseContext.MONTH + " = ?";
+        String[] selectionArgs = {monthYear};
         String sortOrder = DatabaseContext.CATEGORY_BUDGET + " ASC";
         
         Cursor cursor = dbRead.query(
                 DatabaseContext.TABLE_NAME_BUDGET,
                 projection,
                 selection,
-                null,
+                selectionArgs,
                 null,
                 null,
                 sortOrder
@@ -188,7 +175,7 @@ public class BudgetDb {
                 budgetCategory.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CATEGORY_BUDGET)));
                 budgetCategory.setMoney(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseContext.MONEY_BUDGET)));
                 budgetCategory.setSpentAmount(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseContext.SPENT_AMOUNT)));
-                budgetCategory.setMonthYear(monthYear);
+                budgetCategory.setMonth(monthYear);
                 budgetCategory.setCreatedAt(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CREATED_AT)));
                 
                 budgetCategories.add(budgetCategory);
@@ -230,7 +217,7 @@ public class BudgetDb {
             budgetCategory.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CATEGORY_BUDGET)));
             budgetCategory.setMoney(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseContext.MONEY_BUDGET)));
             budgetCategory.setSpentAmount(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseContext.SPENT_AMOUNT)));
-            budgetCategory.setMonthYear(getCurrentMonthYear());
+            budgetCategory.setMonth(getCurrentMonth());
             budgetCategory.setCreatedAt(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CREATED_AT)));
             
             cursor.close();

@@ -206,7 +206,7 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
                     newBudget.setName(category);
                     newBudget.setMoney(amount);
                     newBudget.setCategory(category);
-                    newBudget.setMonthYear(getCurrentMonthYear());
+                    newBudget.setMonth(getCurrentMonth());
                     newBudget.setSpentAmount(0.0);
                     budgetDb.addBudgetCategory(newBudget);
                 } else {
@@ -277,8 +277,8 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.On
         }
     }
 
-    private String getCurrentMonthYear() {
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MM/yyyy", java.util.Locale.getDefault());
+    private String getCurrentMonth() {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.getDefault());
         return sdf.format(new java.util.Date());
     }
 }

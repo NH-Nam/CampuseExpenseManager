@@ -9,7 +9,7 @@ import androidx.annotation.Nullable;
 
 public class DatabaseContext extends SQLiteOpenHelper {
     private static final String DB_NAME = "campus_expenses";
-    private static final int DB_VERSION = 8; // Increment version for category table
+    private static final int DB_VERSION = 9; // Increment version for combined budget tables
 
     // User table
     public static final String TABLE_NAME = "users";
@@ -24,28 +24,23 @@ public class DatabaseContext extends SQLiteOpenHelper {
     public static final String DELETED_AT = "deleted_at";
 
     // Budget table
-    public static final String ID_BUDGET = "id";
-    public static final String NAME_BUDGET = "name"; // Optional
-    public static final String MONEY_BUDGET = "money";
-    public static final String DESCRIPTION_BUDGET = "description"; // Optional
     public static final String TABLE_NAME_BUDGET = "budgets";
-    public static final String CATEGORY_BUDGET = "category"; // New: Category for budget
-    public static final String SPENT_AMOUNT = "spent_amount"; // New: Spent amount for budget
+    public static final String ID_BUDGET = "id";
+    public static final String CATEGORY_BUDGET = "category";
+    public static final String BUDGET_AMOUNT = "amount";
+    public static final String MONTH = "month";
+    public static final String SPENT_AMOUNT = "spent_amount";
+    public static final String NAME_BUDGET = "name";
+    public static final String DESCRIPTION_BUDGET = "description";
+    public static final String MONEY_BUDGET = "money";
 
     // Expense table
     public static final String ID_EXPENSE = "id";
     public static final String NAME_EXPENSE = "name";
     public static final String MONEY_EXPENSE = "money";
     public static final String DESCRIPTION_EXPENSE = "description";
-    public static final String CATEGORY_EXPENSE = "category"; // Add the category column
+    public static final String CATEGORY_EXPENSE = "category";
     public static final String TABLE_NAME_EXPENSE = "expenses";
-
-    // Budget Category table
-    public static final String TABLE_NAME_BUDGET_CATEGORY = "budget_categories";
-    public static final String ID_BUDGET_CATEGORY = "id";
-    public static final String CATEGORY_NAME = "category";
-    public static final String BUDGET_AMOUNT = "budget_amount";
-    public static final String MONTH = "month";
 
     // Category table
     public static final String TABLE_NAME_CATEGORY = "categories";
@@ -76,11 +71,12 @@ public class DatabaseContext extends SQLiteOpenHelper {
         // Create the budgets table
         String tableBudget = "CREATE TABLE " + TABLE_NAME_BUDGET + " ( "
                 + ID_BUDGET + " INTEGER PRIMARY KEY AUTOINCREMENT, "
-                + NAME_BUDGET + " VARCHAR(100), " // Optional
+                + NAME_BUDGET + " VARCHAR(100), "
                 + MONEY_BUDGET + " REAL NOT NULL, "
-                + DESCRIPTION_BUDGET + " VARCHAR(200), " // Optional
-                + CATEGORY_BUDGET + " VARCHAR(100) NOT NULL, " // Add category here
-                + SPENT_AMOUNT + " REAL DEFAULT 0, " // Add spent amount here
+                + DESCRIPTION_BUDGET + " VARCHAR(200), "
+                + CATEGORY_BUDGET + " VARCHAR(100) NOT NULL, "
+                + SPENT_AMOUNT + " REAL DEFAULT 0, "
+                + MONTH + " VARCHAR(7) NOT NULL, " // Format: YYYY-MM
                 + CREATED_AT + " DATETIME, "
                 + UPDATED_AT + " DATETIME, "
                 + DELETED_AT + " DATETIME ) ";
@@ -92,23 +88,11 @@ public class DatabaseContext extends SQLiteOpenHelper {
                 + NAME_EXPENSE + " VARCHAR(100) NOT NULL, "
                 + MONEY_EXPENSE + " REAL NOT NULL, "
                 + DESCRIPTION_EXPENSE + " VARCHAR(200), "
-                + CATEGORY_EXPENSE + " VARCHAR(100), " // Add category column to table creation
+                + CATEGORY_EXPENSE + " VARCHAR(100), "
                 + CREATED_AT + " DATETIME, "
                 + UPDATED_AT + " DATETIME, "
                 + DELETED_AT + " DATETIME ) ";
         db.execSQL(tableExpense);
-
-        // Create the budget categories table
-        String tableBudgetCategory = "CREATE TABLE " + TABLE_NAME_BUDGET_CATEGORY + " ( "
-                + ID_BUDGET_CATEGORY + " INTEGER PRIMARY KEY AUTOINCREMENT, "
-                + CATEGORY_NAME + " VARCHAR(100) NOT NULL, "
-                + BUDGET_AMOUNT + " REAL NOT NULL, "
-                + SPENT_AMOUNT + " REAL DEFAULT 0, "
-                + MONTH + " VARCHAR(7) NOT NULL, " // Format: YYYY-MM
-                + CREATED_AT + " DATETIME, "
-                + UPDATED_AT + " DATETIME, "
-                + DELETED_AT + " DATETIME ) ";
-        db.execSQL(tableBudgetCategory);
 
         // Create the categories table
         String tableCategory = "CREATE TABLE " + TABLE_NAME_CATEGORY + " ( "
@@ -124,71 +108,47 @@ public class DatabaseContext extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        // Handle upgrades only
-        if (oldVersion < 4) {
-            db.execSQL("ALTER TABLE " + TABLE_NAME_BUDGET + " ADD COLUMN " + CATEGORY_BUDGET + " VARCHAR(100)");
-        }
+        if (oldVersion < 9) {
+            // Add month column to budgets table
+            db.execSQL("ALTER TABLE " + TABLE_NAME_BUDGET + " ADD COLUMN " + MONTH + " VARCHAR(7) NOT NULL DEFAULT '" + getCurrentMonth() + "'");
+            
+            // If budget_categories table exists, migrate its data
+            Cursor cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='budget_categories'", null);
+            if (cursor != null && cursor.getCount() > 0) {
+                cursor.close();
+                // First check the structure of budget_categories table
+                Cursor tableInfo = db.rawQuery("PRAGMA table_info(budget_categories)", null);
+                if (tableInfo != null) {
+                    boolean hasName = false;
+                    boolean hasBudgetAmount = false;
+                    while (tableInfo.moveToNext()) {
+                        String columnName = tableInfo.getString(1);
+                        if (columnName.equals("name")) hasName = true;
+                        if (columnName.equals("budget_amount")) hasBudgetAmount = true;
+                    }
+                    tableInfo.close();
 
-        if (oldVersion < 5) {
-            db.execSQL("ALTER TABLE " + TABLE_NAME_BUDGET + " ADD COLUMN " + SPENT_AMOUNT + " REAL DEFAULT 0");
-        }
-
-        if (oldVersion < 6) {
-            // Create the budget categories table if upgrading from version 5 or lower
-            String tableBudgetCategory = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME_BUDGET_CATEGORY + " ( "
-                    + ID_BUDGET_CATEGORY + " INTEGER PRIMARY KEY AUTOINCREMENT, "
-                    + CATEGORY_NAME + " VARCHAR(100) NOT NULL, "
-                    + BUDGET_AMOUNT + " REAL NOT NULL, "
-                    + SPENT_AMOUNT + " REAL DEFAULT 0, "
-                    + MONTH + " VARCHAR(7) NOT NULL, " // Format: YYYY-MM
-                    + CREATED_AT + " DATETIME, "
-                    + UPDATED_AT + " DATETIME, "
-                    + DELETED_AT + " DATETIME ) ";
-            db.execSQL(tableBudgetCategory);
-        }
-
-        if (oldVersion < 7) {
-            // Check if the spent_amount column exists in the budgets table
-            Cursor cursor = db.rawQuery("PRAGMA table_info(" + TABLE_NAME_BUDGET + ")", null);
-            boolean columnExists = false;
-            if (cursor != null) {
-                while (cursor.moveToNext()) {
-                    String columnName = cursor.getString(cursor.getColumnIndexOrThrow("name"));
-                    if (columnName.equals(SPENT_AMOUNT)) {
-                        columnExists = true;
-                        break;
+                    // Migrate data from budget_categories to budgets
+                    if (hasName && hasBudgetAmount) {
+                        db.execSQL("INSERT INTO budgets (name, money, description, category, spent_amount, month, created_at) " +
+                                "SELECT name, budget_amount, description, category, spent_amount, month, created_at FROM budget_categories");
+                    } else {
+                        // If columns don't match, create a new budgets table and drop the old one
+                        db.execSQL("DROP TABLE IF EXISTS budget_categories");
                     }
                 }
+                db.execSQL("DROP TABLE IF EXISTS budget_categories");
+            } else if (cursor != null) {
                 cursor.close();
             }
-            
-            // Add the column if it doesn't exist
-            if (!columnExists) {
-                db.execSQL("ALTER TABLE " + TABLE_NAME_BUDGET + " ADD COLUMN " + SPENT_AMOUNT + " REAL DEFAULT 0");
-            }
-        }
-
-        if (oldVersion < 8) {
-            // Create the categories table
-            String tableCategory = "CREATE TABLE " + TABLE_NAME_CATEGORY + " ( "
-                    + ID_CATEGORY + " INTEGER PRIMARY KEY AUTOINCREMENT, "
-                    + NAME_CATEGORY + " VARCHAR(100) NOT NULL, "
-                    + IS_CUSTOM + " INTEGER NOT NULL DEFAULT 0, "
-                    + ICON_NAME + " VARCHAR(100), "
-                    + CREATED_AT + " DATETIME, "
-                    + UPDATED_AT + " DATETIME, "
-                    + DELETED_AT + " DATETIME ) ";
-            db.execSQL(tableCategory);
         }
     }
-    
+
     @Override
     public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        // Handle downgrades by dropping and recreating tables
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_BUDGET);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_EXPENSE);
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_BUDGET_CATEGORY);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME_CATEGORY);
         onCreate(db);
     }
@@ -196,5 +156,10 @@ public class DatabaseContext extends SQLiteOpenHelper {
     @Override
     public synchronized void close() {
         super.close();
+    }
+
+    private String getCurrentMonth() {
+        return new java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.getDefault())
+                .format(new java.util.Date());
     }
 }

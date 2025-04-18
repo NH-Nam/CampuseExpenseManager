@@ -142,11 +142,11 @@ public class CategoryDb {
 
                 // Update budget categories
                 ContentValues budgetCategoryValues = new ContentValues();
-                budgetCategoryValues.put(DatabaseContext.CATEGORY_NAME, category.getName());
+                budgetCategoryValues.put(DatabaseContext.CATEGORY_BUDGET, category.getName());
                 budgetCategoryValues.put(DatabaseContext.UPDATED_AT, getCurrentDateTime());
-                database.update(DatabaseContext.TABLE_NAME_BUDGET_CATEGORY,
+                database.update(DatabaseContext.TABLE_NAME_BUDGET,
                     budgetCategoryValues,
-                    DatabaseContext.CATEGORY_NAME + " = ?",
+                    DatabaseContext.CATEGORY_BUDGET + " = ?",
                     new String[]{oldCategoryName});
 
                 // Notify listeners that data has changed

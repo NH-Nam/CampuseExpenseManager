@@ -313,7 +313,7 @@ public class ExpenseDb {
                 newBudget.setCategory(category);
                 newBudget.setMoney(0); // Set initial budget to 0
                 newBudget.setSpentAmount(amount);
-                newBudget.setMonthYear(budgetDb.getCurrentMonth());
+                newBudget.setMonth(budgetDb.getCurrentMonth());
                 budgetDb.addBudgetCategory(newBudget);
             }
         } catch (Exception e) {

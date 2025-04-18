@@ -7,7 +7,7 @@ public class Budgets {
     private String description;
     private String category;
     private double spentAmount;
-    private String monthYear;
+    private String month;
     private String createdAt;
     private String updatedAt;
     private String deletedAt;
@@ -60,12 +60,12 @@ public class Budgets {
         this.spentAmount = spentAmount;
     }
 
-    public String getMonthYear() {
-        return monthYear;
+    public String getMonth() {
+        return month;
     }
 
-    public void setMonthYear(String monthYear) {
-        this.monthYear = monthYear;
+    public void setMonth(String month) {
+        this.month = month;
     }
 
     public String getCreatedAt() {

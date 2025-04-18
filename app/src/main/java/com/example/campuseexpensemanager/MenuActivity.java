@@ -229,7 +229,7 @@ public class MenuActivity extends AppCompatActivity implements NavigationView.On
                     newCategory.setName(categoryName);
                     newCategory.setCategory(categoryName);
                     newCategory.setMoney(budgetAmount);
-                    newCategory.setMonthYear(budgetDb.getCurrentMonth());
+                    newCategory.setMonth(budgetDb.getCurrentMonth());
                     budgetDb.addBudgetCategory(newCategory);
                     budgetDb.close();
                     
