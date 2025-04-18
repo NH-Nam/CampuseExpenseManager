@@ -27,7 +27,6 @@ public class DatabaseContext extends SQLiteOpenHelper {
     public static final String TABLE_NAME_BUDGET = "budgets";
     public static final String ID_BUDGET = "id";
     public static final String CATEGORY_BUDGET = "category";
-    public static final String BUDGET_AMOUNT = "amount";
     public static final String MONTH = "month";
     public static final String SPENT_AMOUNT = "spent_amount";
     public static final String NAME_BUDGET = "name";
