@@ -9,7 +9,7 @@ import androidx.annotation.Nullable;
 
 public class DatabaseContext extends SQLiteOpenHelper {
     private static final String DB_NAME = "campus_expenses";
-    private static final int DB_VERSION = 9; // Increment version for combined budget tables
+    private static final int DB_VERSION = 10; // Increment version for new column
 
     // User table
     public static final String TABLE_NAME = "users";
@@ -40,6 +40,7 @@ public class DatabaseContext extends SQLiteOpenHelper {
     public static final String DESCRIPTION_EXPENSE = "description";
     public static final String CATEGORY_EXPENSE = "category";
     public static final String TABLE_NAME_EXPENSE = "expenses";
+    public static final String BUDGET_ID = "budget_id"; // New column for budget relationship
 
     // Category table
     public static final String TABLE_NAME_CATEGORY = "categories";
@@ -81,16 +82,19 @@ public class DatabaseContext extends SQLiteOpenHelper {
                 + DELETED_AT + " DATETIME ) ";
         db.execSQL(tableBudget);
 
-        // Create the expenses table
+        // Create the expenses table with budget_id
         String tableExpense = "CREATE TABLE " + TABLE_NAME_EXPENSE + " ( "
                 + ID_EXPENSE + " INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + NAME_EXPENSE + " VARCHAR(100) NOT NULL, "
                 + MONEY_EXPENSE + " REAL NOT NULL, "
                 + DESCRIPTION_EXPENSE + " VARCHAR(200), "
                 + CATEGORY_EXPENSE + " VARCHAR(100), "
+                + BUDGET_ID + " INTEGER, " // New column
                 + CREATED_AT + " DATETIME, "
                 + UPDATED_AT + " DATETIME, "
-                + DELETED_AT + " DATETIME ) ";
+                + DELETED_AT + " DATETIME, "
+                + "FOREIGN KEY(" + BUDGET_ID + ") REFERENCES " + TABLE_NAME_BUDGET + "(" + ID_BUDGET + ")" // Foreign key constraint
+                + " ) ";
         db.execSQL(tableExpense);
 
         // Create the categories table
@@ -107,39 +111,29 @@ public class DatabaseContext extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        if (oldVersion < 9) {
-            // Add month column to budgets table
-            db.execSQL("ALTER TABLE " + TABLE_NAME_BUDGET + " ADD COLUMN " + MONTH + " VARCHAR(7) NOT NULL DEFAULT '" + getCurrentMonth() + "'");
+        if (oldVersion < 10) {
+            // Add budget_id column to expenses table
+            db.execSQL("ALTER TABLE " + TABLE_NAME_EXPENSE + " ADD COLUMN " + BUDGET_ID + " INTEGER");
             
-            // If budget_categories table exists, migrate its data
-            Cursor cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='budget_categories'", null);
-            if (cursor != null && cursor.getCount() > 0) {
-                cursor.close();
-                // First check the structure of budget_categories table
-                Cursor tableInfo = db.rawQuery("PRAGMA table_info(budget_categories)", null);
-                if (tableInfo != null) {
-                    boolean hasName = false;
-                    boolean hasBudgetAmount = false;
-                    while (tableInfo.moveToNext()) {
-                        String columnName = tableInfo.getString(1);
-                        if (columnName.equals("name")) hasName = true;
-                        if (columnName.equals("budget_amount")) hasBudgetAmount = true;
-                    }
-                    tableInfo.close();
-
-                    // Migrate data from budget_categories to budgets
-                    if (hasName && hasBudgetAmount) {
-                        db.execSQL("INSERT INTO budgets (name, money, description, category, spent_amount, month, created_at) " +
-                                "SELECT name, budget_amount, description, category, spent_amount, month, created_at FROM budget_categories");
-                    } else {
-                        // If columns don't match, create a new budgets table and drop the old one
-                        db.execSQL("DROP TABLE IF EXISTS budget_categories");
-                    }
-                }
-                db.execSQL("DROP TABLE IF EXISTS budget_categories");
-            } else if (cursor != null) {
-                cursor.close();
-            }
+            // Add foreign key constraint
+            db.execSQL("CREATE TABLE expenses_new ("
+                    + ID_EXPENSE + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + NAME_EXPENSE + " VARCHAR(100) NOT NULL, "
+                    + MONEY_EXPENSE + " REAL NOT NULL, "
+                    + DESCRIPTION_EXPENSE + " VARCHAR(200), "
+                    + CATEGORY_EXPENSE + " VARCHAR(100), "
+                    + BUDGET_ID + " INTEGER, "
+                    + CREATED_AT + " DATETIME, "
+                    + UPDATED_AT + " DATETIME, "
+                    + DELETED_AT + " DATETIME, "
+                    + "FOREIGN KEY(" + BUDGET_ID + ") REFERENCES " + TABLE_NAME_BUDGET + "(" + ID_BUDGET + "))");
+            
+            // Copy data to new table
+            db.execSQL("INSERT INTO expenses_new SELECT * FROM " + TABLE_NAME_EXPENSE);
+            
+            // Drop old table and rename new one
+            db.execSQL("DROP TABLE " + TABLE_NAME_EXPENSE);
+            db.execSQL("ALTER TABLE expenses_new RENAME TO " + TABLE_NAME_EXPENSE);
         }
     }
 

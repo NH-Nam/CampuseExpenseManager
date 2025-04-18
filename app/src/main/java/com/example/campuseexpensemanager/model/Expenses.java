@@ -6,6 +6,7 @@ public class Expenses {
    private double money;
    private String description;
    private String category;
+   private long budgetId;
    private String createdAt;
    private String updatedAt;
    private String deletedAt;
@@ -40,6 +41,14 @@ public class Expenses {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public long getBudgetId() {
+        return budgetId;
+    }
+
+    public void setBudgetId(long budgetId) {
+        this.budgetId = budgetId;
     }
 
     public String getDescription() {

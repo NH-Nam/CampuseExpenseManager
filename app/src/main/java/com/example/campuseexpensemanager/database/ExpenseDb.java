@@ -62,8 +62,9 @@ public class ExpenseDb {
             return -3;
         }
 
-        // Check if adding this expense would exceed the budget
+        // Get the budget for this category
         List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
+        long budgetId = -1;
         for (Budgets budget : budgetCategories) {
             if (budget.getCategory().equals(category)) {
                 double currentSpent = budget.getSpentAmount();
@@ -72,6 +73,7 @@ public class ExpenseDb {
                     // Return -2 to indicate budget limit exceeded
                     return -2;
                 }
+                budgetId = budget.getId();
                 break;
             }
         }
@@ -81,6 +83,7 @@ public class ExpenseDb {
         values.put(DatabaseContext.MONEY_EXPENSE, amount);
         values.put(DatabaseContext.DESCRIPTION_EXPENSE, description);
         values.put(DatabaseContext.CATEGORY_EXPENSE, category);
+        values.put(DatabaseContext.BUDGET_ID, budgetId);
         values.put(DatabaseContext.CREATED_AT, getCurrentDateTime());
 
         long result = dbWrite.insert(DatabaseContext.TABLE_NAME_EXPENSE, null, values);
@@ -100,11 +103,24 @@ public class ExpenseDb {
         double oldAmount = oldExpense != null ? oldExpense.getMoney() : 0;
         String oldCategory = oldExpense != null ? oldExpense.getCategory() : null;
         
+        // Get the new budget ID
+        long budgetId = -1;
+        if (category != null && !category.isEmpty()) {
+            List<Budgets> budgetCategories = budgetDb.getBudgetCategoriesByMonth(budgetDb.getCurrentMonth());
+            for (Budgets budget : budgetCategories) {
+                if (budget.getCategory().equals(category)) {
+                    budgetId = budget.getId();
+                    break;
+                }
+            }
+        }
+        
         ContentValues values = new ContentValues();
         values.put(DatabaseContext.NAME_EXPENSE, name);
         values.put(DatabaseContext.MONEY_EXPENSE, amount);
         values.put(DatabaseContext.DESCRIPTION_EXPENSE, description);
         values.put(DatabaseContext.CATEGORY_EXPENSE, category);
+        values.put(DatabaseContext.BUDGET_ID, budgetId);
         values.put(DatabaseContext.UPDATED_AT, getCurrentDateTime());
 
         String selection = DatabaseContext.ID_EXPENSE + " LIKE ?";
@@ -332,5 +348,51 @@ public class ExpenseDb {
         if (budgetDb != null) {
             budgetDb.close();
         }
+    }
+
+    public List<Expenses> getExpensesByBudget(long budgetId) {
+        List<Expenses> expensesList = new ArrayList<>();
+        
+        String[] projection = {
+            DatabaseContext.ID_EXPENSE,
+            DatabaseContext.NAME_EXPENSE,
+            DatabaseContext.MONEY_EXPENSE,
+            DatabaseContext.DESCRIPTION_EXPENSE,
+            DatabaseContext.CATEGORY_EXPENSE,
+            DatabaseContext.BUDGET_ID,
+            DatabaseContext.CREATED_AT
+        };
+
+        String selection = DatabaseContext.BUDGET_ID + " = ? AND " + DatabaseContext.DELETED_AT + " IS NULL";
+        String[] selectionArgs = {String.valueOf(budgetId)};
+        String sortOrder = DatabaseContext.CREATED_AT + " DESC";
+
+        Cursor cursor = dbRead.query(
+            DatabaseContext.TABLE_NAME_EXPENSE,
+            projection,
+            selection,
+            selectionArgs,
+            null,
+            null,
+            sortOrder
+        );
+
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                Expenses expense = new Expenses();
+                expense.setId((int) cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseContext.ID_EXPENSE)));
+                expense.setName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.NAME_EXPENSE)));
+                expense.setMoney(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseContext.MONEY_EXPENSE)));
+                expense.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.DESCRIPTION_EXPENSE)));
+                expense.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CATEGORY_EXPENSE)));
+                expense.setBudgetId(cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseContext.BUDGET_ID)));
+                expense.setCreatedAt(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseContext.CREATED_AT)));
+                
+                expensesList.add(expense);
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+
+        return expensesList;
     }
 }
